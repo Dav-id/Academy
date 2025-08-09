@@ -16,41 +16,41 @@ builder.Services.AddHttpContextAccessor();
 
 builder.AddNpgsqlDbContext<ApplicationDbContext>("Academy");
 
-// Add OpenID Connect
-ConfigurationManager<OpenIdConnectConfiguration> configManager = new($"{Configuration["Settings:AuthAuthority"]}", new OpenIdConnectConfigurationRetriever());
-OpenIdConnectConfiguration openidconfig = configManager.GetConfigurationAsync().Result;
+// // Add OpenID Connect
+// ConfigurationManager<OpenIdConnectConfiguration> configManager = new($"{Configuration["Settings:AuthAuthority"]}", new OpenIdConnectConfigurationRetriever());
+// OpenIdConnectConfiguration openidconfig = configManager.GetConfigurationAsync().Result;
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateAudience = false,
-        ValidateIssuer = false,
-        ValidIssuer = openidconfig.Issuer,
-        ValidateActor = false,
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKeys = openidconfig.SigningKeys
-    };
+// builder.Services.AddAuthentication(options =>
+// {
+//     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+//     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+// })
+// .AddJwtBearer(options =>
+// {
+//     options.TokenValidationParameters = new TokenValidationParameters
+//     {
+//         ValidateAudience = false,
+//         ValidateIssuer = false,
+//         ValidIssuer = openidconfig.Issuer,
+//         ValidateActor = false,
+//         ValidateIssuerSigningKey = true,
+//         IssuerSigningKeys = openidconfig.SigningKeys
+//     };
 
-    options.Events = new JwtBearerEvents()
-    {
-        OnAuthenticationFailed = context =>
-        {
-            if (context.Exception is SecurityTokenExpiredException)
-            {
-                // if you end up here, you know that the token is expired
-                context.Response.Headers.Append("Token-Expired", "true");
-            }
+//     options.Events = new JwtBearerEvents()
+//     {
+//         OnAuthenticationFailed = context =>
+//         {
+//             if (context.Exception is SecurityTokenExpiredException)
+//             {
+//                 // if you end up here, you know that the token is expired
+//                 context.Response.Headers.Append("Token-Expired", "true");
+//             }
 
-            return Task.CompletedTask;
-        }
-    };
-});
+//             return Task.CompletedTask;
+//         }
+//     };
+// });
 
 // Add services to the container.
 builder.Services.AddProblemDetails();

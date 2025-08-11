@@ -5,6 +5,7 @@ using Academy.Shared.Security.FusionAuth;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.IdentityModel.Protocols;
@@ -14,6 +15,7 @@ using Microsoft.OpenApi.Models;
 
 using Swashbuckle.AspNetCore.SwaggerUI;
 
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Security.Claims;
@@ -24,7 +26,6 @@ using VaultSharp;
 using VaultSharp.V1.AuthMethods;
 using VaultSharp.V1.AuthMethods.Token;
 using VaultSharp.V1.Commons;
-
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -201,8 +202,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("Administrator", p => p.RequireRole("Administrator"));
-    options.AddPolicy("Instructor", p => p.RequireRole("Instructor"));
-    options.AddPolicy("Learner", p => p.RequireRole("Learner"));
+    options.AddPolicy("Instructor", p => p.RequireAssertion(ctx => ctx.User.IsInRole("Administrator") || ctx.User.IsInRole("Instructor")));    
+    options.AddPolicy("Learner", p => p.RequireAssertion(ctx => ctx.User.IsInRole("Administrator") || ctx.User.IsInRole("Instructor") || ctx.User.IsInRole("Learner")));
 
     options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
                                 .RequireAuthenticatedUser()
@@ -212,6 +213,31 @@ builder.Services.AddAuthorization(options =>
 // Add services to the container.
 builder.Services.AddProblemDetails();
 
+// Add localization services
+builder.Services.AddLocalization();
+
+// Configure supported cultures (currently English and Portuguese)
+CultureInfo[] supportedCultures = new[]
+{
+    new CultureInfo("en"),
+    new CultureInfo("pt"),
+};
+
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    options.DefaultRequestCulture = new RequestCulture("en");
+    options.SupportedCultures = supportedCultures;     // for numbers, dates
+    options.SupportedUICultures = supportedCultures;   // for UI/resources
+
+    options.RequestCultureProviders = [
+        new QueryStringRequestCultureProvider(),       // ?culture=pt&ui-culture=pt        
+        new AcceptLanguageHeaderRequestCultureProvider()
+    ];
+
+    options.ApplyCurrentCultureToResponseHeaders = true;
+});
+
+// Add OpenAPI/Swagger services
 builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -270,7 +296,7 @@ builder.Services.AddRateLimiter(options =>
 // Add Auth Client
 // TODO: In the future select the correct client based on the auth provider
 // TODO: Add Azure AD, Auth0, etc. clients
-builder.Services.AddScoped<IAuthClient, FusionAuthClient>();
+builder.Services.AddSingleton<IAuthClient, FusionAuthClient>();
 
 WebApplication app = builder.Build();
 
@@ -284,6 +310,10 @@ using (IServiceScope serviceScope = app.Services.GetRequiredService<IServiceScop
         context.Database.EnsureCreated();
         context.Database.Migrate();
     }
+
+    //Initialise the Auth Client (run the async setup)
+    IAuthClient authClient = serviceScope.ServiceProvider.GetRequiredService<IAuthClient>();
+    await authClient.Initialise();
 }
 
 app.UseForwardedHeaders();
@@ -314,6 +344,8 @@ if (app.Environment.IsDevelopment())
 
 // Add rate limiting middleware
 app.UseRateLimiter();
+
+app.UseRequestLocalization();
 
 //-------------------------------------
 // Register our endpoints

@@ -1,4 +1,5 @@
-﻿using Academy.Shared.Data.Models.Roles;
+﻿using Academy.Shared.Data.Models.Accounts;
+using Academy.Shared.Data.Models.Roles;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -14,6 +15,10 @@ namespace Academy.Shared.Data.Contexts
         {
         }
 
-        public DbSet<ExternalRoleMapping> ExternalRoleMappings { get; set; }
+        // Accounts
+        public DbSet<UserProfile>           UserProfiles            { get; set; }
+
+        // Roles
+        public DbSet<ExternalRoleMapping>   ExternalRoleMappings    { get; set; }
     }
 }

@@ -2,9 +2,9 @@
 
 using Microsoft.AspNetCore.Http.HttpResults;
 
-using static Academy.Services.Api.Endpoints.Account.GetProfile.Contracts;
+using static Academy.Services.Api.Endpoints.Account.GetUserProfile.Contracts;
 
-namespace Academy.Services.Api.Endpoints.Account.GetProfile
+namespace Academy.Services.Api.Endpoints.Account.GetUserProfile
 {
     public static class Endpoint
     {
@@ -18,7 +18,7 @@ namespace Academy.Services.Api.Endpoints.Account.GetProfile
             });
 
             // Log mapped routes
-            Routes.Add("api/v1/users/{id}");
+            Routes.Add("GET: api/v1/users/{id}");
         }
 
         private static async Task<Results<Ok<Response>, BadRequest<ErrorResponse>>> GetProfile(string id, IServiceProvider services)
@@ -65,7 +65,7 @@ namespace Academy.Services.Api.Endpoints.Account.GetProfile
             //TODO: query the database
             //db.Users.Find(id);
 
-            return TypedResults.Ok<Response>(new(id, "First Name", "Last Name", true));
+            return TypedResults.Ok<Response>(new(id, "First Name", "Last Name", "", true));
         }
     }
 }

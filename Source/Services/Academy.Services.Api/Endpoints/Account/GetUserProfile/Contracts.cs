@@ -1,4 +1,4 @@
-﻿namespace Academy.Services.Api.Endpoints.Account.GetProfile
+﻿namespace Academy.Services.Api.Endpoints.Account.GetUserProfile
 {
     public static class Contracts
     {
@@ -7,6 +7,7 @@
         public record Response(string Id,
                                string FirstName,
                                string LastName,
+                               string Email,
                                bool IsEnabled);
     }
 }

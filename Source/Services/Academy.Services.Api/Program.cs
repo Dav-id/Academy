@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 
 using System.Reflection;
+using System.Threading.RateLimiting;
 
 using VaultSharp;
 using VaultSharp.V1.AuthMethods;
@@ -85,6 +86,29 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddOpenApi();
 
+// Add rate limiting services
+builder.Services.AddRateLimiter(options =>
+{
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        // Use user identity if authenticated, otherwise use IP address
+        string user = httpContext.User?.Identity?.IsAuthenticated == true ? httpContext.User.Identity.Name ?? "anonymous" : httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        // Example: 100 requests per minute per user/IP
+        return RateLimitPartition.GetTokenBucketLimiter(user, _ => new TokenBucketRateLimiterOptions
+        {
+            TokenLimit = 100,
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0,
+            ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+            TokensPerPeriod = 100,
+            AutoReplenishment = true
+        });
+    });
+
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
 WebApplication app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -100,6 +124,9 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+// Add rate limiting middleware
+app.UseRateLimiter();
 
 // Register our endpoints 
 

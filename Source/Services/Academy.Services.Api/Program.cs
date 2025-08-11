@@ -7,7 +7,40 @@ using Microsoft.IdentityModel.Tokens;
 
 using System.Reflection;
 
+using VaultSharp;
+using VaultSharp.V1.AuthMethods;
+using VaultSharp.V1.AuthMethods.Token;
+using VaultSharp.V1.Commons;
+
+
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+//-------------------------------------
+// Get the secrets from Hashicorp Vault
+//-------------------------------------
+
+// Used by Vault for segregation of credentials
+string academyInstance = builder.Configuration["academy-instance"] ?? "";
+
+// Default to using Vault which can be launched from the separate docker-compose.yaml file. You can override this by setting it in the user secrets.
+string vaultUrl = builder.Configuration["vault-url"] ?? "";
+string vaultToken = builder.Configuration["vault-token"] ?? "";
+
+// Initialize one of the several auth methods.
+IAuthMethodInfo authMethod = new TokenAuthMethodInfo(vaultToken);
+
+// Initialize settings. You can also set proxies, custom delegates etc. here.
+VaultClientSettings vaultClientSettings = new(vaultUrl, authMethod);
+
+VaultClient vaultClient = new(vaultClientSettings);
+
+// We have a KeyValue secrets engine called kv-v2 with a secret matching the academy-instance and containing key value pairs below
+Secret<SecretData> secret = await vaultClient.V1.Secrets.KeyValue.V2.ReadSecretAsync(academyInstance);
+
+string authUrl = ((System.Text.Json.JsonElement)secret.Data.Data["auth-url"]).GetString() ?? "";
+string authAudience = ((System.Text.Json.JsonElement)secret.Data.Data["auth-audience"]).GetString() ?? "";
+string authIssuer = ((System.Text.Json.JsonElement)secret.Data.Data["auth-issuer"]).GetString() ?? "";
+string authOpenIdConfiguration = ((System.Text.Json.JsonElement)secret.Data.Data["auth-openid-configuration"]).GetString() ?? "";
 
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
@@ -16,41 +49,28 @@ builder.Services.AddHttpContextAccessor();
 
 builder.AddNpgsqlDbContext<ApplicationDbContext>("Academy");
 
-// // Add OpenID Connect
-// ConfigurationManager<OpenIdConnectConfiguration> configManager = new($"{Configuration["Settings:AuthAuthority"]}", new OpenIdConnectConfigurationRetriever());
-// OpenIdConnectConfiguration openidconfig = configManager.GetConfigurationAsync().Result;
+// Add OpenID JWT Auth
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.Authority = authUrl;
+                    options.Audience = authAudience;
+                    options.ConfigurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
+                        authOpenIdConfiguration, //$"{options.Authority}/.well-known/openid-configuration",
+                        new OpenIdConnectConfigurationRetriever()
+                    );
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidIssuer = authIssuer,
+                        ValidateAudience = true,
+                        ValidAudience = authAudience,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true
+                    };
+                });
 
-// builder.Services.AddAuthentication(options =>
-// {
-//     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-//     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-// })
-// .AddJwtBearer(options =>
-// {
-//     options.TokenValidationParameters = new TokenValidationParameters
-//     {
-//         ValidateAudience = false,
-//         ValidateIssuer = false,
-//         ValidIssuer = openidconfig.Issuer,
-//         ValidateActor = false,
-//         ValidateIssuerSigningKey = true,
-//         IssuerSigningKeys = openidconfig.SigningKeys
-//     };
-
-//     options.Events = new JwtBearerEvents()
-//     {
-//         OnAuthenticationFailed = context =>
-//         {
-//             if (context.Exception is SecurityTokenExpiredException)
-//             {
-//                 // if you end up here, you know that the token is expired
-//                 context.Response.Headers.Append("Token-Expired", "true");
-//             }
-
-//             return Task.CompletedTask;
-//         }
-//     };
-// });
+builder.Services.AddAuthorization();
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
@@ -61,6 +81,9 @@ WebApplication app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Add healthcheck endpoint. 
 app.MapHealthChecks("/health");

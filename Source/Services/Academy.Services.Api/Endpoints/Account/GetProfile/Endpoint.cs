@@ -15,7 +15,8 @@ namespace Academy.Services.Api.Endpoints.Account.GetProfile
             app.MapGet("api/v1/users/{id}", async (string id, IServiceProvider services) =>
             {
                 return await GetProfile(id, services);
-            });
+            })
+            .RequireAuthorization();
 
             // Log mapped routes
             Routes.Add("api/v1/users/{id}");

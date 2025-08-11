@@ -56,6 +56,9 @@ IResourceBuilder<PostgresDatabaseResource> postgresdb = postgres.AddDatabase("Ac
 // API Service
 IResourceBuilder<ProjectResource> apiService = builder.AddProject<Projects.Academy_Services_Api>("services-api")
                                                       .WithReference(postgresdb)
+                                                      .WithEnvironment("academy-instance", academyInstance)
+                                                      .WithEnvironment("vault-url", vaultUrl)
+                                                      .WithEnvironment("vault-token", vaultToken)
                                                       .WithHttpHealthCheck("/health")
                                                       .WithReference(cache)
                                                       .WaitFor(cache)

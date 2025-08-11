@@ -10,14 +10,20 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Aspire\Academy.ServiceDefaults\Academy.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\Shared\Academy.Shared.Data\Academy.Shared.Data.csproj" />
+    <ProjectReference Include="..\..\Shared\Academy.Shared.Security.FusionAuth\ClassLibrary1\Academy.Shared.Security.FusionAuth.csproj" />
+    <ProjectReference Include="..\..\Shared\Academy.Shared.Security\Academy.Shared.Security\Academy.Shared.Security.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.4.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.7" />
     <PackageReference Include="Aspire.Npgsql" Version="9.4.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.8" />
     <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.13.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="9.0.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="9.0.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="9.0.3" />
     <PackageReference Include="VaultSharp" Version="1.17.5.1" />
   </ItemGroup>
 

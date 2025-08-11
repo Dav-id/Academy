@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Academy.Shared.Data.Models.Roles;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace Academy.Shared.Data.Contexts
 {
@@ -11,5 +13,7 @@ namespace Academy.Shared.Data.Contexts
         protected ApplicationDbContext()
         {
         }
+
+        public DbSet<ExternalRoleMapping> ExternalRoleMappings { get; set; }
     }
 }

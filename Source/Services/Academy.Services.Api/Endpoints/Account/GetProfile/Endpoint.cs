@@ -29,7 +29,7 @@ namespace Academy.Services.Api.Endpoints.Account.GetProfile
             ILogger logger = loggerFactory.CreateLogger(typeof(Endpoint).FullName ?? nameof(Endpoint));
             IHttpContextAccessor httpContextAccessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
 
-            logger.LogInformation("GetProfile called with Id: {Id}", id);
+            //logger.LogInformation("GetProfile called with Id: {Id}", id);
 
             if (string.IsNullOrWhiteSpace(id))
             {

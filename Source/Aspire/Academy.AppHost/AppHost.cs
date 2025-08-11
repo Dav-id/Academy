@@ -38,6 +38,13 @@ if (string.IsNullOrEmpty(dbUsernameSecret) || string.IsNullOrEmpty(dbPasswordSec
 IResourceBuilder<ParameterResource> username = builder.AddParameter("db-username", dbUsernameSecret, publishValueAsDefault: false, secret: true);
 IResourceBuilder<ParameterResource> password = builder.AddParameter("db-password", dbPasswordSecret, publishValueAsDefault: false, secret: true);
 
+string redisPasswordSecret = ((System.Text.Json.JsonElement)secret.Data.Data["redis-password"]).GetString() ?? "";
+if (string.IsNullOrEmpty(redisPasswordSecret))
+{
+    throw new Exception("redis password cannot be null or empty");
+}
+IResourceBuilder<ParameterResource> redisPassword = builder.AddParameter("redis-password", redisPasswordSecret, publishValueAsDefault: false, secret: true);
+
 // Add more secrets here as we require them
 
 //-------------------
@@ -45,10 +52,10 @@ IResourceBuilder<ParameterResource> password = builder.AddParameter("db-password
 //-------------------
 
 // Redis Cache
-IResourceBuilder<RedisResource> cache = builder.AddRedis("cache");
+IResourceBuilder<RedisResource> cache = builder.AddRedis("cache", 10601, redisPassword);
 
 // Postgres
-IResourceBuilder<PostgresServerResource> postgres = builder.AddPostgres("postgres", username, password)
+IResourceBuilder<PostgresServerResource> postgres = builder.AddPostgres("postgres", username, password, port: 10602)
                                                            .WithDataVolume(isReadOnly: false);
 // Create the DB
 IResourceBuilder<PostgresDatabaseResource> postgresdb = postgres.AddDatabase("Academy");

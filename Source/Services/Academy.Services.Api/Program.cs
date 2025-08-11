@@ -56,7 +56,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     options.Authority = authUrl;
                     options.Audience = authAudience;
                     options.ConfigurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
-                        authOpenIdConfiguration, //$"{options.Authority}/.well-known/openid-configuration",
+                        // FusionAuth uses a custom OpenID Connect configuration endpoint for each tenant.
+                        // We use this to ensure we are using the correct signing keys.
+                        authOpenIdConfiguration,
                         new OpenIdConnectConfigurationRetriever()
                     );
                     options.TokenValidationParameters = new TokenValidationParameters
@@ -70,7 +72,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     };
                 });
 
-builder.Services.AddAuthorization();
+// Require authentication by default
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+                                .RequireAuthenticatedUser()
+                                .Build();
+});
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
@@ -124,7 +132,7 @@ foreach (Type endpointType in AppDomain.CurrentDomain.GetAssemblies().SelectMany
                 throw new InvalidOperationException($"{endpointType.DeclaringType.FullName} must implement RequiredMethod with the correct signature.");
             }
 
-            if (endpointNames.Contains(endpointType.DeclaringType.FullName.Trim()))
+            if (string.IsNullOrEmpty(endpointType.DeclaringType.FullName) || endpointNames.Contains(endpointType.DeclaringType.FullName.Trim()))
             {
                 // If the endpoint has already been registered, skip it
                 continue;

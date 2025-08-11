@@ -43,6 +43,10 @@ string authAudience = ((System.Text.Json.JsonElement)secret.Data.Data["auth-audi
 string authIssuer = ((System.Text.Json.JsonElement)secret.Data.Data["auth-issuer"]).GetString() ?? "";
 string authOpenIdConfiguration = ((System.Text.Json.JsonElement)secret.Data.Data["auth-openid-configuration"]).GetString() ?? "";
 
+//-------------------------------------
+// Build the application
+//-------------------------------------
+
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
 
@@ -87,6 +91,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
 // Add rate limiting services
+// TODO: add distributed cache for rate limiting
 builder.Services.AddRateLimiter(options =>
 {
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
@@ -118,7 +123,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // Add healthcheck endpoint. 
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").AllowAnonymous();
 
 if (app.Environment.IsDevelopment())
 {
@@ -128,7 +133,9 @@ if (app.Environment.IsDevelopment())
 // Add rate limiting middleware
 app.UseRateLimiter();
 
-// Register our endpoints 
+//-------------------------------------
+// Register our endpoints
+//-------------------------------------
 
 // get IServiceProvider for our Endpoint mapping, used for getting DB context etc. 
 IServiceProvider serviceProvider = app.Services;
@@ -151,9 +158,8 @@ foreach (Type endpointType in AppDomain.CurrentDomain.GetAssemblies().SelectMany
         }
         else
         {
-            if (method.GetParameters().Length != 2 ||
-                method.GetParameters()[0].ParameterType != typeof(IEndpointRouteBuilder) ||
-                method.GetParameters()[1].ParameterType != typeof(IServiceProvider))
+            if (method.GetParameters().Length != 1 ||
+                method.GetParameters()[0].ParameterType != typeof(IEndpointRouteBuilder))
             {
                 // If the method signature is not as expected, throw an exception
                 throw new InvalidOperationException($"{endpointType.DeclaringType.FullName} must implement RequiredMethod with the correct signature.");
@@ -166,7 +172,7 @@ foreach (Type endpointType in AppDomain.CurrentDomain.GetAssemblies().SelectMany
             }
 
             // If the method is found, invoke it with the app and serviceProvider
-            method.Invoke(null, [app, serviceProvider]);
+            method.Invoke(null, [app]);
 
             // Add to our list so we register it only once
             endpointNames.Add(endpointType.DeclaringType.FullName.Trim());
@@ -202,6 +208,7 @@ foreach (Type endpointType in AppDomain.CurrentDomain.GetAssemblies().SelectMany
 
 endpointNames.Clear();
 
+//-------------------------------------
 // Start the application
-
+//-------------------------------------
 app.Run();

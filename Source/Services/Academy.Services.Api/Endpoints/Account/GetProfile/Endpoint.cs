@@ -10,7 +10,7 @@ namespace Academy.Services.Api.Endpoints.Account.GetProfile
     {
         public static readonly List<string> Routes = [];
 
-        public static void AddEndpoint(this IEndpointRouteBuilder app, IServiceProvider services)
+        public static void AddEndpoint(this IEndpointRouteBuilder app)
         {
             app.MapGet("api/v1/users/{id}", async (string id, IServiceProvider services) =>
             {

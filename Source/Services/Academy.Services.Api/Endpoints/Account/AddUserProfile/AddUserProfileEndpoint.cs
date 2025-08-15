@@ -1,54 +1,41 @@
-﻿using Academy.Shared.Data.Contexts;
+﻿using Academy.Services.Api.Filters;
+using Academy.Shared.Data.Contexts;
 using Academy.Shared.Security;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
-using System.ComponentModel.DataAnnotations;
-
-using static Academy.Services.Api.Endpoints.Account.AddUserProfile.Contracts;
+using static Academy.Services.Api.Endpoints.Account.AddUserProfile.AddUserProfileContracts;
 
 namespace Academy.Services.Api.Endpoints.Account.AddUserProfile
 {
-    public static class Endpoint
+    public static class AddUserProfileEndpoint
     {
         public static readonly List<string> Routes = [];
 
         public static void AddEndpoint(this IEndpointRouteBuilder app)
         {
-            app.MapPut("api/v1/users", async (Request request, IServiceProvider services) =>
+            app.MapPut("api/v1/users", async (AddUserProfileRequest request, IServiceProvider services) =>
             {
                 return await AddUserProfile(request, services);
             })
+            .Validate<RouteHandlerBuilder, AddUserProfileRequest>()
+            .ProducesValidationProblem()
             .RequireAuthorization("Instructor");
 
             // Log mapped routes
             Routes.Add("PUT: api/v1/users");
         }
 
-        private static async Task<Results<Ok<Response>, BadRequest<ErrorResponse>>> AddUserProfile(Request request, IServiceProvider services)
+        private static async Task<Results<Ok<AddUserProfileResponse>, BadRequest<ErrorResponse>>> AddUserProfile(AddUserProfileRequest request, IServiceProvider services)
         {
             await using AsyncServiceScope scope = services.CreateAsyncScope();
 
             ILoggerFactory loggerFactory = scope.ServiceProvider.GetRequiredService<ILoggerFactory>();
-            ILogger logger = loggerFactory.CreateLogger(typeof(Endpoint).FullName ?? nameof(Endpoint));
+            ILogger logger = loggerFactory.CreateLogger(typeof(AddUserProfileEndpoint).FullName ?? nameof(AddUserProfileEndpoint));
             IHttpContextAccessor httpContextAccessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
-
-            if (request is null)
-            {
-                logger.LogError("AddUserProfile called with null request");
-                return TypedResults.BadRequest(
-                    new ErrorResponse(
-                        StatusCodes.Status400BadRequest,
-                        "Invalid Request",
-                        "The request cannot be null.",
-                        "Ensure that the request body is provided.",
-                        httpContextAccessor.HttpContext?.TraceIdentifier
-                    )
-                );
-            }
-
             IAuthClient authClient = scope.ServiceProvider.GetRequiredService<IAuthClient>();
+
             if (authClient == null)
             {
                 logger.LogError("AddUserProfile failed to retrieve IAuthClient");
@@ -117,47 +104,60 @@ namespace Academy.Services.Api.Endpoints.Account.AddUserProfile
             Shared.Data.Models.Accounts.UserProfile? up = await db.UserProfiles.FirstOrDefaultAsync(x => x.Id == idpUser.Id);
             if (up == null)
             {
-                up = new Shared.Data.Models.Accounts.UserProfile()
+                try
                 {
-                    Id = idpUser.Id,
-                    FirstName = request.FirstName,
-                    LastName = request.LastName,
-                    Email = idpUser.Email,
-                    IsEnabled = idpUser.IsEnabled,
-                    CreatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown",
-                    UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown"
-                };
+                    up = new Shared.Data.Models.Accounts.UserProfile()
+                    {
+                        Id = idpUser.Id,
+                        FirstName = request.FirstName,
+                        LastName = request.LastName,
+                        Email = idpUser.Email,
+                        IsEnabled = idpUser.IsEnabled,
+                        CreatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown",
+                        UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown"
+                    };
 
-                //validate the model
-                ValidationContext validationContext = new(up);
-                List<ValidationResult> validationResults = [];
+                    db.UserProfiles.Add(up);
 
-                if (!Validator.TryValidateObject(up, validationContext, validationResults, validateAllProperties: true))
+                    await db.SaveChangesAsync();
+                }
+                catch (Exception ex)
                 {
-                    logger.LogError("AddUserProfile validation failed for user: {Email}", request.Email);
-
+                    logger.LogError(ex, "AddUserProfile failed to create user profile for Id: {Id}", idpUser.Id);
                     return TypedResults.BadRequest(
                         new ErrorResponse(
-                            StatusCodes.Status400BadRequest,
-                            "Validation Error",
-                            "User profile validation failed",
-                            string.Join(", ", validationResults.Select(vr => vr.ErrorMessage)),
+                            StatusCodes.Status500InternalServerError,
+                            "Internal Server Error",
+                            "Failed to create user profile",
+                            null,
                             httpContextAccessor.HttpContext?.TraceIdentifier
                         )
                     );
                 }
-
-                db.UserProfiles.Add(up);
-
-                await db.SaveChangesAsync();
             }
             else if (!up.IsEnabled)
             {
-                up.IsEnabled = true;
-                await db.SaveChangesAsync();
+                try
+                {
+                    up.IsEnabled = true;
+                    await db.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "AddUserProfile failed to enable existing user profile for Id: {Id}", idpUser.Id);
+                    return TypedResults.BadRequest(
+                        new ErrorResponse(
+                            StatusCodes.Status500InternalServerError,
+                            "Internal Server Error",
+                            "Failed to enable user profile",
+                            null,
+                            httpContextAccessor.HttpContext?.TraceIdentifier
+                        )
+                    );
+                }
             }
 
-            return TypedResults.Ok<Response>(new(up.Id, up.FirstName, up.LastName, up.Email, up.IsEnabled));
+            return TypedResults.Ok<AddUserProfileResponse>(new(up.Id, up.FirstName, up.LastName, up.Email, up.IsEnabled));
         }
     }
 }

@@ -7,16 +7,23 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.4.0" />
-		<PackageReference Include="Aspire.Npgsql" Version="9.4.0" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.7">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		<PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.4.1" />
+		<PackageReference Include="Aspire.Npgsql" Version="9.4.1" />
+	</ItemGroup>
+	
+	<ItemGroup>
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.7" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.7" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.7">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.7" />
 	</ItemGroup>
 
+
 	<ItemGroup>
-	  <ProjectReference Include="..\Academy.Shared.Localisation\Academy.Shared.Localisation.csproj" />
+		<ProjectReference Include="..\Academy.Shared.Localisation\Academy.Shared.Localisation.csproj" />
 	</ItemGroup>
 
 </Project>

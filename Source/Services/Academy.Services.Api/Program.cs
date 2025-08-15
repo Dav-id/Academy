@@ -3,6 +3,8 @@ using Academy.Shared.Data.Models.Roles;
 using Academy.Shared.Security;
 using Academy.Shared.Security.FusionAuth;
 
+using FluentValidation;
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
@@ -68,6 +70,7 @@ builder.AddServiceDefaults();
 builder.Services.AddHttpContextAccessor();
 
 builder.AddNpgsqlDbContext<ApplicationDbContext>("Academy");
+
 
 // Add Redis distributed cache
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -202,7 +205,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("Administrator", p => p.RequireRole("Administrator"));
-    options.AddPolicy("Instructor", p => p.RequireAssertion(ctx => ctx.User.IsInRole("Administrator") || ctx.User.IsInRole("Instructor")));    
+    options.AddPolicy("Instructor", p => p.RequireAssertion(ctx => ctx.User.IsInRole("Administrator") || ctx.User.IsInRole("Instructor")));
     options.AddPolicy("Learner", p => p.RequireAssertion(ctx => ctx.User.IsInRole("Administrator") || ctx.User.IsInRole("Instructor") || ctx.User.IsInRole("Learner")));
 
     options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
@@ -217,11 +220,10 @@ builder.Services.AddProblemDetails();
 builder.Services.AddLocalization();
 
 // Configure supported cultures (currently English and Portuguese)
-CultureInfo[] supportedCultures = new[]
-{
+CultureInfo[] supportedCultures = [
     new CultureInfo("en"),
     new CultureInfo("pt"),
-};
+];
 
 builder.Services.Configure<RequestLocalizationOptions>(options =>
 {
@@ -237,7 +239,12 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
     options.ApplyCurrentCultureToResponseHeaders = true;
 });
 
+
+// Add FluentValidation services
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly, includeInternalTypes: true);
+
 // Add OpenAPI/Swagger services
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -345,6 +352,7 @@ if (app.Environment.IsDevelopment())
 // Add rate limiting middleware
 app.UseRateLimiter();
 
+// Add localization middleware
 app.UseRequestLocalization();
 
 //-------------------------------------
@@ -370,7 +378,7 @@ foreach (Type endpointType in AppDomain.CurrentDomain.GetAssemblies().SelectMany
                                                                                     && !type.IsAbstract
                                                                                     && type.Namespace?.StartsWith("Academy.Services.Api.Endpoints") == true))
 {
-    if (endpointType?.DeclaringType?.Name == "Endpoint")
+    if (endpointType?.DeclaringType?.Name.EndsWith("Endpoint") ?? false)
     {
         MethodInfo? method = endpointType.DeclaringType.GetMethod("AddEndpoint", BindingFlags.Static | BindingFlags.Public);
         if (method == null)

@@ -1,6 +1,6 @@
 ﻿namespace Academy.Services.Api.Endpoints.Account.GetUserProfile
 {
-    public static class Contracts
+    public static class GetUserProfileContracts
     {
         //public record Request(string Id);
 

@@ -75,7 +75,7 @@ namespace Academy.Tests.Services
 
             response.EnsureSuccessStatusCode();
 
-            Academy.Services.Api.Endpoints.Account.GetUserProfile.Contracts.Response? result = await response.Content.ReadFromJsonAsync<Academy.Services.Api.Endpoints.Account.GetUserProfile.Contracts.Response>();
+            Academy.Services.Api.Endpoints.Account.GetUserProfile.GetUserProfileContracts.Response? result = await response.Content.ReadFromJsonAsync<Academy.Services.Api.Endpoints.Account.GetUserProfile.GetUserProfileContracts.Response>();
             Assert.IsNotNull(result);
         }
     }

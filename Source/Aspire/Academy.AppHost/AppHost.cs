@@ -10,10 +10,10 @@ IDistributedApplicationBuilder builder = DistributedApplication.CreateBuilder(ar
 //-------------------------------------
 
 // Used by Vault for segregation of credentials
-IResourceBuilder<ParameterResource> academyInstance = builder.AddParameter("academy-instance", "development", publishValueAsDefault: false, secret: true);
+IResourceBuilder<ParameterResource> academyInstance = builder.AddParameter("academy-instance", secret: true);
 
 // Default to using Vault which can be launched from the separate docker-compose.yaml file. You can override this by setting it in the user secrets.
-IResourceBuilder<ParameterResource> vaultUrl = builder.AddParameter("vault-url", "http://host.docker.internal:8200", publishValueAsDefault: false, secret: true);
+IResourceBuilder<ParameterResource> vaultUrl = builder.AddParameter("vault-url", secret: true);
 IResourceBuilder<ParameterResource> vaultToken = builder.AddParameter("vault-token", secret: true);
 
 // Initialize one of the several auth methods.

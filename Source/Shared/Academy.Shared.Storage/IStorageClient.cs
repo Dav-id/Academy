@@ -6,7 +6,7 @@ namespace Academy.Shared.Storage
 {
     public interface IStorageClient
     {
-        Task<Asset?> UploadAssetAsync(IFormFile file);
-        Task<Asset?> UploadAssetAsync(Stream stream, string fileName, string fileContentType, long fileLength);
+        Task<Asset?> UploadAssetAsync(IFormFile file, string folder);
+        Task<Asset?> UploadAssetAsync(Stream stream, string folder, string fileName, string fileContentType, long fileLength);
     }
 }

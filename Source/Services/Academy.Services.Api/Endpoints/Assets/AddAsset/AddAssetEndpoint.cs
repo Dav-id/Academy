@@ -145,7 +145,7 @@ namespace Academy.Services.Api.Endpoints.Assets.AddAsset
             try
             {
                 // Upload the file to the storage client
-                asset = await storageClient.UploadAssetAsync(request.File);
+                asset = await storageClient.UploadAssetAsync(request.File, "test");
             }
             catch (Exception ex)
             {

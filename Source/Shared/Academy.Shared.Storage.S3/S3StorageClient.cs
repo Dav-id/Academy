@@ -55,12 +55,12 @@ namespace Academy.Shared.Storage.S3
         }
 
 
-        public async Task<Asset?> UploadAssetAsync(Stream stream, string fileName, string fileContentType, long fileLength)
+        public async Task<Asset?> UploadAssetAsync(Stream stream, string folder, string fileName, string fileContentType, long fileLength)
         {
             await EnsureBucketExistsAsync(_client, _bucket);
 
             Guid id = Guid.NewGuid();
-            string objectName = $"{id:N}{Path.GetExtension(fileName)}";
+            string objectName = !string.IsNullOrEmpty(folder) ? $"{folder}/" :"" + $"{id:N}{Path.GetExtension(fileName)}";
             string contentType = string.IsNullOrWhiteSpace(fileContentType) ? "application/octet-stream" : fileContentType;
 
             PutObjectArgs putArgs = new PutObjectArgs()
@@ -106,10 +106,11 @@ namespace Academy.Shared.Storage.S3
             );
         }
 
-        public Task<Asset?> UploadAssetAsync(IFormFile file)
+        public Task<Asset?> UploadAssetAsync(IFormFile file, string folder)
         {
             return UploadAssetAsync(
                 file.OpenReadStream(),
+                folder,
                 file.FileName,
                 file.ContentType,
                 file.Length

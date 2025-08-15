@@ -4,9 +4,9 @@ using Academy.Shared.Data.Contexts;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.IdentityModel.Tokens;
 
-using static Academy.Services.Api.Endpoints.Account.GetUserProfile.GetUserProfileContracts;
+using static Academy.Services.Api.Endpoints.Accounts.GetUserProfile.GetUserProfileContracts;
 
-namespace Academy.Services.Api.Endpoints.Account.GetUserProfile
+namespace Academy.Services.Api.Endpoints.Accounts.GetUserProfile
 {
     public static class GetUserProfileEndpoint
     {
@@ -23,18 +23,19 @@ namespace Academy.Services.Api.Endpoints.Account.GetUserProfile
             Routes.Add("GET: api/v1/users/{id}");
         }
 
-        private static async Task<Results<Ok<Response>, BadRequest<ErrorResponse>>> GetProfile(string id, IServiceProvider services)
+        private static async Task<Results<Ok<GetUserProfileResponse>, BadRequest<ErrorResponse>>> GetProfile(string id, IServiceProvider services)
         {
             await using AsyncServiceScope scope = services.CreateAsyncScope();
 
+            // Retrieve required services
             ILoggerFactory loggerFactory = scope.ServiceProvider.GetRequiredService<ILoggerFactory>();
             ILogger logger = loggerFactory.CreateLogger(typeof(GetUserProfileEndpoint).FullName ?? nameof(GetUserProfileEndpoint));
             IHttpContextAccessor httpContextAccessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
 
             //logger.LogInformation("GetProfile called with Id: {Id}", id);
 
-            CaseSensitiveClaimsIdentity? cp = httpContextAccessor.HttpContext?.User?.Identity as CaseSensitiveClaimsIdentity;
-            if (cp == null)
+            // Check if the user is authenticated - should be, otherwise this endpoint should not be accessible
+            if (httpContextAccessor.HttpContext?.User?.Identity is not CaseSensitiveClaimsIdentity cp)
             {
                 logger.LogError("GetProfile called without an authenticated user");
                 return TypedResults.BadRequest(
@@ -48,8 +49,8 @@ namespace Academy.Services.Api.Endpoints.Account.GetUserProfile
                 );
             }
 
-
-            if (!(cp?.IsInRole("Administrator") ?? false) && !(cp?.IsInRole("Instructor") ?? false) && cp?.GetUserId() != id)
+            // Check if the user has the required roles or is the same user
+            if (!cp.IsInRole("Administrator") && !cp.IsInRole("Instructor") && cp.GetUserId() != id)
             {
                 logger.LogError("GetProfile called by user without sufficient permissions. UserId: {UserId}, RequestedId: {RequestedId}", cp.GetUserId(), id);
                 return TypedResults.BadRequest(
@@ -63,6 +64,7 @@ namespace Academy.Services.Api.Endpoints.Account.GetUserProfile
                 );
             }
 
+            // Validate the Id parameter
             if (string.IsNullOrWhiteSpace(id))
             {
                 logger.LogError("GetProfile called with empty or null Id");
@@ -94,6 +96,7 @@ namespace Academy.Services.Api.Endpoints.Account.GetUserProfile
                 );
             }
 
+            // Check if the user profile exists in the database
             var up = db.UserProfiles.FirstOrDefault(x => x.Id == id);
             if (up == null)
             {
@@ -109,7 +112,8 @@ namespace Academy.Services.Api.Endpoints.Account.GetUserProfile
                 );
             }
 
-            return TypedResults.Ok<Response>(new(up.Id, up.FirstName, up.LastName, up.Email, up.IsEnabled));
+            // Return user profile
+            return TypedResults.Ok<GetUserProfileResponse>(new(up.Id, up.FirstName, up.LastName, up.Email, up.IsEnabled));
         }
     }
 }

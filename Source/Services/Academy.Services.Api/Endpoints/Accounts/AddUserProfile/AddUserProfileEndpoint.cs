@@ -5,9 +5,9 @@ using Academy.Shared.Security;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
-using static Academy.Services.Api.Endpoints.Account.AddUserProfile.AddUserProfileContracts;
+using static Academy.Services.Api.Endpoints.Accounts.AddUserProfile.AddUserProfileContracts;
 
-namespace Academy.Services.Api.Endpoints.Account.AddUserProfile
+namespace Academy.Services.Api.Endpoints.Accounts.AddUserProfile
 {
     public static class AddUserProfileEndpoint
     {
@@ -51,6 +51,7 @@ namespace Academy.Services.Api.Endpoints.Account.AddUserProfile
                 );
             }
 
+            // Check if the user already exists in the Identity Provider
             Shared.Security.Models.UserProfile? idpUser = await authClient.GetUserByEmailAsync(request.Email);
             if (idpUser == null)
             {
@@ -71,6 +72,7 @@ namespace Academy.Services.Api.Endpoints.Account.AddUserProfile
                 }
             }
 
+            // Ensure the user has an Id
             if (string.IsNullOrEmpty(idpUser.Id))
             {
                 logger.LogError("AddUserProfile failed to retrieve user Id from Identity Provider for email: {Email}", request.Email);
@@ -101,6 +103,7 @@ namespace Academy.Services.Api.Endpoints.Account.AddUserProfile
                 );
             }
 
+            // Check if the user profile already exists in the database
             Shared.Data.Models.Accounts.UserProfile? up = await db.UserProfiles.FirstOrDefaultAsync(x => x.Id == idpUser.Id);
             if (up == null)
             {
@@ -117,6 +120,7 @@ namespace Academy.Services.Api.Endpoints.Account.AddUserProfile
                         UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown"
                     };
 
+                    // Add the new user profile to the database
                     db.UserProfiles.Add(up);
 
                     await db.SaveChangesAsync();
@@ -135,6 +139,7 @@ namespace Academy.Services.Api.Endpoints.Account.AddUserProfile
                     );
                 }
             }
+            // If the user profile already exists, check if it is enabled, if not, enable it
             else if (!up.IsEnabled)
             {
                 try
@@ -157,6 +162,7 @@ namespace Academy.Services.Api.Endpoints.Account.AddUserProfile
                 }
             }
 
+            // Return the user profile response
             return TypedResults.Ok<AddUserProfileResponse>(new(up.Id, up.FirstName, up.LastName, up.Email, up.IsEnabled));
         }
     }

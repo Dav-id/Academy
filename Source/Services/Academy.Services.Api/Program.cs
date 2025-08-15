@@ -3,6 +3,8 @@ using Academy.Shared.Data.Models.Roles;
 using Academy.Shared.Security;
 using Academy.Shared.Security.FusionAuth;
 using Academy.Shared.Security.Models;
+using Academy.Shared.Storage;
+using Academy.Shared.Storage.S3;
 
 using FluentValidation;
 
@@ -304,6 +306,7 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
+// Add FusionAuth client
 builder.Services.AddScoped<IAuthClient, FusionAuthClient>(x =>
 {
     string authApiUrl = ((JsonElement)secret.Data.Data["auth-fusion-apiurl"]).GetString() ?? "";
@@ -318,6 +321,20 @@ builder.Services.AddScoped<IAuthClient, FusionAuthClient>(x =>
     ICollection<IdentityProviderRoleMapping> externalRoleMappings = [.. dbContext.ExternalRoleMappings.Select(x=> new IdentityProviderRoleMapping(x.Issuer, x.ExternalClaimValue, x.AppRole))];
 
     return new FusionAuthClient(logger, authApiUrl, authApiKey, authTenantId, authAudience, authIssuer, externalRoleMappings);
+});
+
+// Add S3 storage client
+builder.Services.AddScoped<IStorageClient, S3StorageClient>(x =>
+{
+    string s3ApiUrl = ((JsonElement)secret.Data.Data["s3-apiurl"]).GetString() ?? "";
+    string s3AccessKey = ((JsonElement)secret.Data.Data["s3-accesskey"]).GetString() ?? "";
+    string s3SecretKey = ((JsonElement)secret.Data.Data["s3-secretkey"]).GetString() ?? "";
+    string s3UseSSL = ((JsonElement)secret.Data.Data["s3-use-ssl"]).GetString() ?? "true";
+    string s3Bucket = ((JsonElement)secret.Data.Data["s3-bucket"]).GetString() ?? "";
+
+    ILogger<S3StorageClient> logger = x.GetRequiredService<ILogger<S3StorageClient>>();
+
+    return new S3StorageClient(logger, s3ApiUrl, s3AccessKey, s3SecretKey, bool.Parse(s3UseSSL), s3Bucket);
 });
 
 WebApplication app = builder.Build();

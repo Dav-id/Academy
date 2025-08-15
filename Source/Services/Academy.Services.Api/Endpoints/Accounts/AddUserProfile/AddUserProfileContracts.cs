@@ -2,9 +2,7 @@
 
 using FluentValidation;
 
-using static Academy.Services.Api.Endpoints.Account.AddUserProfile.AddUserProfileContracts;
-
-namespace Academy.Services.Api.Endpoints.Account.AddUserProfile
+namespace Academy.Services.Api.Endpoints.Accounts.AddUserProfile
 {
     public static class AddUserProfileContracts
     {
@@ -20,7 +18,7 @@ namespace Academy.Services.Api.Endpoints.Account.AddUserProfile
     }
 
 
-    public sealed class CreateUserValidator : AbstractValidator<AddUserProfileRequest>
+    public sealed class CreateUserValidator : AbstractValidator<AddUserProfileContracts.AddUserProfileRequest>
     {
         public CreateUserValidator()
         {

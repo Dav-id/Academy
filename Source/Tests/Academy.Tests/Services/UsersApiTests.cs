@@ -1,4 +1,6 @@
-﻿using Aspire.Hosting;
+﻿using Academy.Services.Api.Endpoints.Accounts.GetUserProfile;
+
+using Aspire.Hosting;
 
 using Microsoft.Extensions.Logging;
 
@@ -75,7 +77,7 @@ namespace Academy.Tests.Services
 
             response.EnsureSuccessStatusCode();
 
-            Academy.Services.Api.Endpoints.Account.GetUserProfile.GetUserProfileContracts.Response? result = await response.Content.ReadFromJsonAsync<Academy.Services.Api.Endpoints.Account.GetUserProfile.GetUserProfileContracts.Response>();
+            GetUserProfileContracts.GetUserProfileResponse? result = await response.Content.ReadFromJsonAsync<GetUserProfileContracts.GetUserProfileResponse>();
             Assert.IsNotNull(result);
         }
     }

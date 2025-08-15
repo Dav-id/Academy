@@ -12,6 +12,8 @@
     <ProjectReference Include="..\..\Shared\Academy.Shared.Data\Academy.Shared.Data.csproj" />
     <ProjectReference Include="..\..\Shared\Academy.Shared.Security.FusionAuth\ClassLibrary1\Academy.Shared.Security.FusionAuth.csproj" />
     <ProjectReference Include="..\..\Shared\Academy.Shared.Security\Academy.Shared.Security\Academy.Shared.Security.csproj" />
+    <ProjectReference Include="..\..\Shared\Academy.Shared.Storage.S3\Academy.Shared.Storage.S3.csproj" />
+    <ProjectReference Include="..\..\Shared\Academy.Shared.Storage\Academy.Shared.Storage.csproj" />
   </ItemGroup>
 
   <ItemGroup>

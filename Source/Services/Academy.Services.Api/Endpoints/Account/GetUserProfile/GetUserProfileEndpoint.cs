@@ -4,8 +4,6 @@ using Academy.Shared.Data.Contexts;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.IdentityModel.Tokens;
 
-using System.Security.Claims;
-
 using static Academy.Services.Api.Endpoints.Account.GetUserProfile.GetUserProfileContracts;
 
 namespace Academy.Services.Api.Endpoints.Account.GetUserProfile
@@ -35,7 +33,7 @@ namespace Academy.Services.Api.Endpoints.Account.GetUserProfile
 
             //logger.LogInformation("GetProfile called with Id: {Id}", id);
 
-            CaseSensitiveClaimsIdentity cp = (CaseSensitiveClaimsIdentity?)httpContextAccessor.HttpContext?.User?.Identity;
+            CaseSensitiveClaimsIdentity? cp = httpContextAccessor.HttpContext?.User?.Identity as CaseSensitiveClaimsIdentity;
             if (cp == null)
             {
                 logger.LogError("GetProfile called without an authenticated user");

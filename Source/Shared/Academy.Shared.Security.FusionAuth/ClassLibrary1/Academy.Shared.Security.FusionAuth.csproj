@@ -9,12 +9,10 @@
   <ItemGroup>
     <PackageReference Include="FusionAuth.Client" Version="1.59.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.8" />
-    <PackageReference Include="VaultSharp" Version="1.17.5.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.8" />    
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\Academy.Shared.Data\Academy.Shared.Data.csproj" />
+  <ItemGroup>    
     <ProjectReference Include="..\..\Academy.Shared.Security\Academy.Shared.Security\Academy.Shared.Security.csproj" />
   </ItemGroup>
 

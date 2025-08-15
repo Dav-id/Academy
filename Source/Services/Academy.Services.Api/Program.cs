@@ -2,14 +2,18 @@ using Academy.Shared.Data.Contexts;
 using Academy.Shared.Data.Models.Roles;
 using Academy.Shared.Security;
 using Academy.Shared.Security.FusionAuth;
+using Academy.Shared.Security.Models;
 
 using FluentValidation;
+
+using io.fusionauth.domain;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
@@ -300,10 +304,21 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
-// Add Auth Client
-// TODO: In the future select the correct client based on the auth provider
-// TODO: Add Azure AD, Auth0, etc. clients
-builder.Services.AddSingleton<IAuthClient, FusionAuthClient>();
+builder.Services.AddScoped<IAuthClient, FusionAuthClient>(x =>
+{
+    string authApiUrl = ((JsonElement)secret.Data.Data["auth-fusion-apiurl"]).GetString() ?? "";
+    string authApiKey = ((JsonElement)secret.Data.Data["auth-fusion-apikey"]).GetString() ?? "";
+    string authTenantId = ((JsonElement)secret.Data.Data["auth-fusion-tenantid"]).GetString() ?? "";
+
+    string authAudience = ((JsonElement)secret.Data.Data["auth-audience"]).GetString() ?? "";
+    string authIssuer = ((JsonElement)secret.Data.Data["auth-issuer"]).GetString() ?? "";
+
+    ILogger<FusionAuthClient> logger = x.GetRequiredService<ILogger<FusionAuthClient>>();
+    ApplicationDbContext dbContext = x.GetRequiredService<ApplicationDbContext>();
+    ICollection<IdentityProviderRoleMapping> externalRoleMappings = [.. dbContext.ExternalRoleMappings.Select(x=> new IdentityProviderRoleMapping(x.Issuer, x.ExternalClaimValue, x.AppRole))];
+
+    return new FusionAuthClient(logger, authApiUrl, authApiKey, authTenantId, authAudience, authIssuer, externalRoleMappings);
+});
 
 WebApplication app = builder.Build();
 
@@ -317,10 +332,6 @@ using (IServiceScope serviceScope = app.Services.GetRequiredService<IServiceScop
         context.Database.EnsureCreated();
         context.Database.Migrate();
     }
-
-    //Initialise the Auth Client (run the async setup)
-    IAuthClient authClient = serviceScope.ServiceProvider.GetRequiredService<IAuthClient>();
-    await authClient.Initialise();
 }
 
 app.UseForwardedHeaders();

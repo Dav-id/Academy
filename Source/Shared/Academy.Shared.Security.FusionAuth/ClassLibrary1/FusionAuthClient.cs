@@ -1,69 +1,23 @@
-﻿using Academy.Shared.Data.Contexts;
-using Academy.Shared.Security.Models;
+﻿using Academy.Shared.Security.Models;
 
 using io.fusionauth.domain;
 
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using System.Security.Cryptography;
-using System.Text.Json;
-
-using VaultSharp;
-using VaultSharp.V1.AuthMethods.Token;
-using VaultSharp.V1.Commons;
 
 namespace Academy.Shared.Security.FusionAuth
 {
-    public class FusionAuthClient(IConfiguration configuration, ILogger<FusionAuthClient> logger, IServiceScopeFactory serviceScopeFactory) : IAuthClient
+    public class FusionAuthClient(ILogger<FusionAuthClient> logger, string apiUrl, string apiKey, string tenantId, string audience, string issuer, ICollection<IdentityProviderRoleMapping> externalRoleMappings) : IAuthClient
     {
         private readonly ILogger<FusionAuthClient> _logger = logger;
-        private readonly IServiceScopeFactory _serviceScopeFactory = serviceScopeFactory;
 
-        private readonly string _academyInstance = configuration["academy-instance"] ?? "";
-        private readonly string _vaultUrl = configuration["vault-url"] ?? "";
-        private readonly string _vaultToken = configuration["vault-token"] ?? "";
-
-        private string _apiKey = string.Empty;
-        private string _apiUrl = string.Empty;
-        private string _tenantId = string.Empty;
-        private string _audience = string.Empty;
-        private string _issuer = string.Empty;
-
-        public async Task Initialise()
-        {
-            // Ensure the Vault client is initialized and can connect to the Vault server.
-            try
-            {
-                // Initialize settings. You can also set proxies, custom delegates etc. here.
-                VaultClientSettings vaultClientSettings = new(_vaultUrl, new TokenAuthMethodInfo(_vaultToken));
-
-                VaultClient vaultClient = new(vaultClientSettings);
-                Secret<SecretData> secret = await vaultClient.V1.Secrets.KeyValue.V2.ReadSecretAsync(_academyInstance);
-
-                _apiKey = ((JsonElement)secret.Data.Data["auth-fusion-apikey"]).GetString() ?? "";
-                _apiUrl = ((JsonElement)secret.Data.Data["auth-fusion-apiurl"]).GetString() ?? "";
-                _tenantId = ((JsonElement)secret.Data.Data["auth-fusion-tenantid"]).GetString() ?? "";
-                
-                _audience = ((JsonElement)secret.Data.Data["auth-audience"]).GetString() ?? "";
-                _issuer = ((JsonElement)secret.Data.Data["auth-issuer"]).GetString() ?? "";
-
-                if (string.IsNullOrEmpty(_apiKey) || string.IsNullOrEmpty(_apiUrl) || string.IsNullOrEmpty(_tenantId))
-                {
-                    throw new InvalidOperationException("FusionAuth API key, URL, or tenant ID is not configured properly.");
-                }
-
-                if (string.IsNullOrEmpty(_audience) || string.IsNullOrEmpty(_issuer))
-                {
-                    throw new InvalidOperationException("Audience or issuer is not configured properly.");
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException("Failed to connect to Vault server.", ex);
-            }
-        }
+        private readonly string _apiUrl = apiUrl;
+        private readonly string _apiKey = apiKey;
+        private readonly string _tenantId = tenantId;
+        private readonly string _audience = audience;
+        private readonly string _issuer = issuer;
+        private readonly ICollection<IdentityProviderRoleMapping> _identityProviderRoleMappings = externalRoleMappings;
 
         private const string Allowed =
             "ABCDEFGHJKLMNPQRSTUVWXYZ" +
@@ -121,7 +75,7 @@ namespace Academy.Shared.Security.FusionAuth
 
         public async Task<UserProfile?> GetUserByEmailAsync(string email)
         {
-            io.fusionauth.FusionAuthClient authClient = new io.fusionauth.FusionAuthClient(_apiKey, _apiUrl, _tenantId);
+            io.fusionauth.FusionAuthClient authClient = new(_apiKey, _apiUrl, _tenantId);
 
             io.fusionauth.ClientResponse<io.fusionauth.domain.api.UserResponse> user = await authClient.RetrieveUserByEmailAsync(email);
 
@@ -138,12 +92,9 @@ namespace Academy.Shared.Security.FusionAuth
                         // Retrieve roles from the registration and map to our application's roles
                         if (registration.roles.Count > 0)
                         {
-                            await using var scope = _serviceScopeFactory.CreateAsyncScope();
-                            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-                            foreach(var r in registration.roles)
+                            foreach (var r in registration.roles)
                             {
-                                var role = db.ExternalRoleMappings.FirstOrDefault(x => x.Issuer == _issuer && x.ExternalClaimValue == r);
+                                var role = _identityProviderRoleMappings.FirstOrDefault(x => x.Issuer == _issuer && x.ExternalClaimValue == r);
                                 if (role != null)
                                 {
                                     roles.Add(role.AppRole);

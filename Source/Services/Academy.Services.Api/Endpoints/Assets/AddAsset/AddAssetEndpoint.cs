@@ -137,7 +137,7 @@ namespace Academy.Services.Api.Endpoints.Assets.AddAsset
             }
 
             // Log the file upload attempt
-            //logger.LogInformation("AddAsset called by user {UserId} to upload file {FileName} with size {FileSize} bytes", cp.GetUserId(), request.File.FileName, request.File.Length);
+            logger.LogInformation("AddAsset called by user {UserId} to upload file {FileName} with size {FileSize} bytes", cp.GetUserId(), request.File.FileName, request.File.Length);
 
             Asset? asset = null;
 

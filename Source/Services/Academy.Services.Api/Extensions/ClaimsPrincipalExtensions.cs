@@ -24,7 +24,7 @@ namespace Academy.Services.Api.Extensions
 
         public static string GetUserId(this CaseSensitiveClaimsIdentity user)
         {
-            Claim claim = GetClaim(user, ClaimTypes.NameIdentifier);
+            Claim claim = GetClaim(user, "sid");
 
             return claim?.Value ?? string.Empty;
         }

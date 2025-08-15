@@ -60,7 +60,7 @@ namespace Academy.Shared.Storage.S3
             await EnsureBucketExistsAsync(_client, _bucket);
 
             Guid id = Guid.NewGuid();
-            string objectName = !string.IsNullOrEmpty(folder) ? $"{folder}/" :"" + $"{id:N}{Path.GetExtension(fileName)}";
+            string objectName = (!string.IsNullOrEmpty(folder) ? $"{folder}/" :"") + $"{id:N}{Path.GetExtension(fileName)}";
             string contentType = string.IsNullOrWhiteSpace(fileContentType) ? "application/octet-stream" : fileContentType;
 
             PutObjectArgs putArgs = new PutObjectArgs()

@@ -1,10 +1,7 @@
-﻿using Microsoft.IdentityModel.Tokens;
-
-using System.Security.Claims;
+﻿using System.Security.Claims;
 
 namespace Academy.Services.Api.Extensions
 {
-
     // add GetUserId extension method to IdentityUser
     public static class ClaimsPrincipalExtensions
     {
@@ -13,7 +10,7 @@ namespace Academy.Services.Api.Extensions
         {
             ArgumentNullException.ThrowIfNull(user);
 
-            Claim userClaim = user.FindFirst(claim);
+            Claim? userClaim = user.FindFirst(claim);
             if (string.IsNullOrEmpty(userClaim?.Value))
             {
                 throw new InvalidOperationException($"{claim} claim not found.");

@@ -2,7 +2,7 @@
 using Academy.Shared.Data.Contexts;
 
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.EntityFrameworkCore;
 
 using System.Security.Claims;
 
@@ -30,8 +30,6 @@ namespace Academy.Services.Api.Endpoints.Accounts.GetUserProfile
         {
             // Create a new logger instance for this endpoint, use the full name of the endpoint class for better logging context
             ILogger logger = loggerFactory.CreateLogger(typeof(GetUserProfileEndpoint).FullName ?? nameof(GetUserProfileEndpoint));
-            
-            //logger.LogInformation("GetProfile called with Id: {Id}", id);
 
             // Check if the user is authenticated - should be, otherwise this endpoint should not be accessible
             if (httpContextAccessor.HttpContext?.User?.Identity is not ClaimsIdentity cp)
@@ -78,9 +76,9 @@ namespace Academy.Services.Api.Endpoints.Accounts.GetUserProfile
                     )
                 );
             }
-            
+
             // Check if the user profile exists in the database
-            var up = db.UserProfiles.FirstOrDefault(x => x.Id == id);
+            var up = await db.UserProfiles.FirstOrDefaultAsync(x => x.Id == id);
             if (up == null)
             {
                 logger.LogError("GetProfile failed to find user profile with Id: {Id}", id);

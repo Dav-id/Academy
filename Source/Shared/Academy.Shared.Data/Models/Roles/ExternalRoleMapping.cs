@@ -2,7 +2,7 @@
 
 namespace Academy.Shared.Data.Models.Roles
 {
-    public class ExternalRoleMapping : BaseModel
+    public class ExternalRoleMapping : BaseModelNoTenant
     {
         // e.g. "https://login.microsoftonline.com/{tenantId}/v2.0" or "https://{your-domain}.auth0.com/"
         [Required]

@@ -76,5 +76,4 @@ namespace Academy.Services.Api.Middleware
             }
         }
     }
-
 }

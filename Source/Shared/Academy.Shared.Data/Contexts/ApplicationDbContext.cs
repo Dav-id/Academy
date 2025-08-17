@@ -36,17 +36,22 @@ namespace Academy.Shared.Data.Contexts
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Accounts
-            modelBuilder.Entity<UserProfile>().HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+            modelBuilder.Entity<UserProfile>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
             
             //Courses
-            modelBuilder.Entity<Course>().HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
-            modelBuilder.Entity<CourseModule>().HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+            modelBuilder.Entity<Course>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+            modelBuilder.Entity<CourseModule>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
             
             //Roles
-            modelBuilder.Entity<ExternalRoleMapping>().HasQueryFilter(c => !c.IsDeleted/* && c.TenantId == TenantId*/);
+            modelBuilder.Entity<ExternalRoleMapping>()
+                        .HasQueryFilter(c => !c.IsDeleted);
 
             //Tenants
-            modelBuilder.Entity<Tenant>().HasQueryFilter(c => !c.IsDeleted);
+            modelBuilder.Entity<Tenant>()
+                        .HasQueryFilter(c => !c.IsDeleted);
         }
 
         // Accounts

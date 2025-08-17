@@ -4,6 +4,8 @@ using Academy.Shared.Data.Contexts;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.IdentityModel.Tokens;
 
+using System.Security.Claims;
+
 using static Academy.Services.Api.Endpoints.Accounts.GetUserProfile.GetUserProfileContracts;
 
 namespace Academy.Services.Api.Endpoints.Accounts.GetUserProfile
@@ -14,7 +16,7 @@ namespace Academy.Services.Api.Endpoints.Accounts.GetUserProfile
 
         public static void AddEndpoint(this IEndpointRouteBuilder app)
         {
-            app.MapGet("api/v1/users/{id}", async (string id, IServiceProvider services) =>
+            app.MapGet("api/v1/users/{id}", async (long id, IServiceProvider services) =>
             {
                 return await GetProfile(id, services);
             });
@@ -23,7 +25,7 @@ namespace Academy.Services.Api.Endpoints.Accounts.GetUserProfile
             Routes.Add("GET: api/v1/users/{id}");
         }
 
-        private static async Task<Results<Ok<GetUserProfileResponse>, BadRequest<ErrorResponse>>> GetProfile(string id, IServiceProvider services)
+        private static async Task<Results<Ok<GetUserProfileResponse>, BadRequest<ErrorResponse>>> GetProfile(long id, IServiceProvider services)
         {
             await using AsyncServiceScope scope = services.CreateAsyncScope();
 
@@ -35,7 +37,7 @@ namespace Academy.Services.Api.Endpoints.Accounts.GetUserProfile
             //logger.LogInformation("GetProfile called with Id: {Id}", id);
 
             // Check if the user is authenticated - should be, otherwise this endpoint should not be accessible
-            if (httpContextAccessor.HttpContext?.User?.Identity is not CaseSensitiveClaimsIdentity cp)
+            if (httpContextAccessor.HttpContext?.User?.Identity is not ClaimsIdentity cp)
             {
                 logger.LogError("GetProfile called without an authenticated user");
                 return TypedResults.BadRequest(
@@ -65,7 +67,7 @@ namespace Academy.Services.Api.Endpoints.Accounts.GetUserProfile
             }
 
             // Validate the Id parameter
-            if (string.IsNullOrWhiteSpace(id))
+            if (id <= 0)
             {
                 logger.LogError("GetProfile called with empty or null Id");
 

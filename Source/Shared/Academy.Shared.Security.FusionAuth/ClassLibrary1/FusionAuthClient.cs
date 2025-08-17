@@ -10,6 +10,7 @@ namespace Academy.Shared.Security.FusionAuth
 {
     public class FusionAuthClient(ILogger<FusionAuthClient> logger, string apiUrl, string apiKey, string tenantId, string audience, string issuer, ICollection<IdentityProviderRoleMapping> externalRoleMappings) : IAuthClient
     {
+
         private readonly ILogger<FusionAuthClient> _logger = logger;
 
         private readonly string _apiUrl = apiUrl;
@@ -24,6 +25,8 @@ namespace Academy.Shared.Security.FusionAuth
             "abcdefghijkmnopqrstuvwxyz" +
             "23456789" +
             "!@#$%^&*_-+=?";
+
+        public string ProviderName => "FusionAuth";
 
         private static string GenerateSecurePassword(int length = 32) => RandomNumberGenerator.GetString(Allowed, length);
 

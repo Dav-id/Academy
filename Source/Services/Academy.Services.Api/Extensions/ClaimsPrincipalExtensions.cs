@@ -9,7 +9,7 @@ namespace Academy.Services.Api.Extensions
     public static class ClaimsPrincipalExtensions
     {
 
-        private static Claim GetClaim(CaseSensitiveClaimsIdentity user, string claim)
+        private static Claim GetClaim(ClaimsIdentity user, string claim)
         {
             ArgumentNullException.ThrowIfNull(user);
 
@@ -22,29 +22,33 @@ namespace Academy.Services.Api.Extensions
             return userClaim;
         }
 
-        public static string GetUserId(this CaseSensitiveClaimsIdentity user)
+        public static long GetUserId(this ClaimsIdentity user)
         {
-            Claim claim = GetClaim(user, "sid");
+            Claim claim = GetClaim(user, "id");
 
-            return claim?.Value ?? string.Empty;
+            if (!long.TryParse(claim.Value, out long id))
+            {
+                throw new InvalidOperationException("User ID claim is not a valid long.");
+            }
+
+            return id;
         }
 
-
-        public static string GetUserName(this CaseSensitiveClaimsIdentity user)
+        public static string GetUserName(this ClaimsIdentity user)
         {
             Claim claim = GetClaim(user, ClaimTypes.Name);
 
             return claim?.Value ?? string.Empty;
         }
 
-        public static string GetEmail(this CaseSensitiveClaimsIdentity user)
+        public static string GetEmail(this ClaimsIdentity user)
         {
             Claim claim = GetClaim(user, ClaimTypes.Email);
 
             return claim?.Value ?? string.Empty;
         }
 
-        public static bool IsInRole(this CaseSensitiveClaimsIdentity user, string role)
+        public static bool IsInRole(this ClaimsIdentity user, string role)
         {
             ArgumentNullException.ThrowIfNull(user);
 

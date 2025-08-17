@@ -4,7 +4,7 @@
     {
         //public record Request(string Id);
 
-        public record GetUserProfileResponse(string Id,
+        public record GetUserProfileResponse(long Id,
                                string FirstName,
                                string LastName,
                                string Email,

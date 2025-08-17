@@ -10,7 +10,7 @@ namespace Academy.Services.Api.Endpoints.Accounts.AddUserProfile
                               string LastName,
                               string Email);
 
-        public record AddUserProfileResponse(string Id,
+        public record AddUserProfileResponse(long Id,
                                string FirstName,
                                string LastName,
                                string Email,

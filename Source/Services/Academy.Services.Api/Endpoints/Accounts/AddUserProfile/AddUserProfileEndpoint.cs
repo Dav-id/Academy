@@ -104,17 +104,20 @@ namespace Academy.Services.Api.Endpoints.Accounts.AddUserProfile
             }
 
             // Check if the user profile already exists in the database
-            Shared.Data.Models.Accounts.UserProfile? up = await db.UserProfiles.FirstOrDefaultAsync(x => x.Id == idpUser.Id);
+            Shared.Data.Models.Accounts.UserProfile? up = await db.UserProfiles.FirstOrDefaultAsync(x => x.IdentityProvider == authClient.ProviderName && x.IdentityProviderId == idpUser.Id);
             if (up == null)
             {
                 try
                 {
                     up = new Shared.Data.Models.Accounts.UserProfile()
                     {
-                        Id = idpUser.Id,
                         FirstName = request.FirstName,
                         LastName = request.LastName,
                         Email = idpUser.Email,
+
+                        IdentityProvider = authClient.ProviderName,
+                        IdentityProviderId = idpUser.Id,
+
                         IsEnabled = idpUser.IsEnabled,
                         CreatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown",
                         UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown"

@@ -35,13 +35,13 @@ namespace Academy.Services.Api.Middleware
                         }
 
                         List<Claim> claims = [
-                            new("Id", userProfile.Id.ToString()),
-                            new Claim("IdentityProvider", userProfile.IdentityProvider),
-                            new Claim("IdentityProviderId", userProfile.IdentityProviderId),
-                            new("FirstName", userProfile.FirstName),
-                            new("LastName", userProfile.LastName),
-                            new("FullName", userProfile.FirstName + (!string.IsNullOrEmpty(userProfile.FirstName) ? " " : "") + userProfile.LastName),
-                            new(ClaimTypes.Email, userProfile.Email),
+                            new ("Id", userProfile.Id.ToString()),
+                            new ("IdentityProvider", userProfile.IdentityProvider),
+                            new ("IdentityProviderId", userProfile.IdentityProviderId),
+                            new ("FirstName", userProfile.FirstName),
+                            new ("LastName", userProfile.LastName),
+                            new ("FullName", userProfile.FirstName + (!string.IsNullOrEmpty(userProfile.FirstName) ? " " : "") + userProfile.LastName),
+                            new (ClaimTypes.Email, userProfile.Email),
                         ];
 
                         claims.AddRange(context.User.Claims);
@@ -50,8 +50,6 @@ namespace Academy.Services.Api.Middleware
                         ClaimsIdentity newIdentity = new(claims: claims, context.User.Identity.AuthenticationType, nameType: "id", roleType: "roles");
                         // Replace the current user
                         context.User = new(newIdentity);
-
-                        var isAdmin = context.User.IsInRole("Administrator");
                     }
                 }
             }

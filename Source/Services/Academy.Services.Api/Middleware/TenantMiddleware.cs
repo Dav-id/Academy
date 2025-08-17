@@ -56,5 +56,4 @@ namespace Academy.Services.Api.Middleware
             await next(context);
         }
     }
-
 }

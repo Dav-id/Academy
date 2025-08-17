@@ -23,7 +23,6 @@ using Swashbuckle.AspNetCore.SwaggerUI;
 
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
-using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.RateLimiting;
@@ -185,8 +184,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                                         matchedAppRoles.Add(r);
                                     }
                                 }
-
-
                             }
 
                             // Attach mapped app roles as role claims understood by ASP.NET authorization
@@ -316,7 +313,7 @@ builder.Services.AddScoped<IAuthClient, FusionAuthClient>(x =>
     ILogger<FusionAuthClient> logger = x.GetRequiredService<ILogger<FusionAuthClient>>();
     ApplicationDbContext dbContext = x.GetRequiredService<ApplicationDbContext>();
 
-       ICollection<IdentityProviderRoleMapping> externalRoleMappings = [.. dbContext.ExternalRoleMappings.Select(x => new IdentityProviderRoleMapping(x.Issuer, x.ExternalClaimValue, x.AppRole))];
+    ICollection<IdentityProviderRoleMapping> externalRoleMappings = [.. dbContext.ExternalRoleMappings.Select(x => new IdentityProviderRoleMapping(x.Issuer, x.ExternalClaimValue, x.AppRole))];
 
     return new FusionAuthClient(logger, authApiUrl, authApiKey, authTenantId, authAudience, authIssuer, externalRoleMappings);
 });
@@ -351,57 +348,6 @@ app.UseExceptionHandler();
 
 app.UseAuthentication();
 app.UseMiddleware<DatabaseUserProfileMiddleware>();
-
-// Map user profile fields from DB into User.Identity
-//app.Use(async (context, next) =>
-//{
-//    if (context.User.Identity?.IsAuthenticated == true)
-//    {
-//        string? userId = context.User.FindFirst("sub")?.Value;
-
-//        if (!string.IsNullOrEmpty(userId))
-//        {
-//            //Load user profile from DB
-//            ApplicationDbContext db = context.RequestServices.GetRequiredService<ApplicationDbContext>();
-//            IAuthClient authClient = context.RequestServices.GetRequiredService<IAuthClient>();
-//            Academy.Shared.Data.Models.Accounts.UserProfile? userProfile = await db.UserProfiles.FirstOrDefaultAsync(x => x.IdentityProvider == authClient.ProviderName && x.IdentityProviderId == userId);
-
-//            if (userProfile != null)
-//            {
-//                foreach (Claim claim in context.User.Claims)
-//                {
-//                    // Remove existing claims that we will replace
-//                    if (claim.Type == "FirstName" || claim.Type == "LastName" || claim.Type == ClaimTypes.Email || claim.Type == "Id" || claim.Type == "IdentityProvider" || claim.Type == "IdentityProviderId")
-//                    {
-//                        ((ClaimsIdentity)context.User.Identity).RemoveClaim(claim);
-//                    }
-//                }
-
-//                List<Claim> claims = [
-//                    new("Id", userProfile.Id.ToString()),
-//                    new Claim("IdentityProvider", userProfile.IdentityProvider),
-//                    new Claim("IdentityProviderId", userProfile.IdentityProviderId),
-//                    new("FirstName", userProfile.FirstName),
-//                    new("LastName", userProfile.LastName),
-//                    new("FullName", userProfile.FirstName + (!string.IsNullOrEmpty(userProfile.FirstName) ? " " : "") + userProfile.LastName),
-//                    new(ClaimTypes.Email, userProfile.Email),
-//                ];
-
-//                claims.AddRange(context.User.Claims);
-
-//                // Create a new identity and principal
-//                ClaimsIdentity newIdentity = new(claims: claims, context.User.Identity.AuthenticationType, nameType: "id", roleType: "roles");
-//                // Replace the current user
-//                context.User = new(newIdentity);
-
-//                var isAdmin = context.User.IsInRole("Administrator");
-//            }
-//        }
-//    }
-
-//    await next();
-//});
-
 app.UseAuthorization();
 
 // Add healthcheck endpoint. 
@@ -432,85 +378,11 @@ app.UseRequestLocalization();
 // Register our endpoints
 //-------------------------------------
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapGet("/me", (ClaimsPrincipal user) =>
-    {
-        //string name = user.Identity.Name ?? user.FindFirst("preferred_username")?.Value ?? "unknown";
-        string id = user.FindFirst("sub")?.Value ?? "unknown";
-        string roles = string.Join(", ", user.FindAll(ClaimTypes.Role).Select(c => c.Value));
-        return Results.Ok(new { id, roles });
-    });
-}
-
-List<string> endpointNames = [];
-
-// Map all endpoints in the Academy.Services.Api.Endpoints namespace
-foreach (Type endpointType in AppDomain.CurrentDomain.GetAssemblies().SelectMany(assembly => assembly.GetTypes())
-                                                                        .Where(type => type.IsClass
-                                                                                    && !type.IsAbstract
-                                                                                    && type.Namespace?.StartsWith("Academy.Services.Api.Endpoints") == true))
-{
-    if (endpointType?.DeclaringType?.Name.EndsWith("Endpoint") ?? false)
-    {
-        MethodInfo? method = endpointType.DeclaringType.GetMethod("AddEndpoint", BindingFlags.Static | BindingFlags.Public);
-        if (method == null)
-        {
-            // If the method is not found, throw an exception
-            throw new InvalidOperationException($"{endpointType.DeclaringType.FullName} must implement RequiredMethod.");
-        }
-        else
-        {
-            if (method.GetParameters().Length != 1 || method.GetParameters()[0].ParameterType != typeof(IEndpointRouteBuilder))
-            {
-                // If the method signature is not as expected, throw an exception
-                throw new InvalidOperationException($"{endpointType.DeclaringType.FullName} must implement RequiredMethod with the correct signature.");
-            }
-
-            if (string.IsNullOrEmpty(endpointType.DeclaringType.FullName) || endpointNames.Contains(endpointType.DeclaringType.FullName.Trim()))
-            {
-                // If the endpoint has already been registered, skip it
-                continue;
-            }
-
-            // If the method is found, invoke it with the app and serviceProvider
-            method.Invoke(null, [app]);
-
-            // Add to our list so we register it only once
-            endpointNames.Add(endpointType.DeclaringType.FullName.Trim());
-
-            #region Log the routes
-
-            app.Logger.LogInformation("Registered endpoint: {class}", endpointType.DeclaringType.FullName);
-
-            //List<string> routes = endpoints.GetValue();
-            FieldInfo? field = endpointType.DeclaringType.GetField("Routes", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-
-            if (field == null || field.FieldType != typeof(List<string>))
-            {
-                throw new InvalidOperationException("Field not found or not of type List<string>");
-            }
-
-            List<string> routes = (List<string>)field.GetValue(null)!;
-
-            //log the routes in a single LogInformation
-            if (routes.Count > 0)
-            {
-                app.Logger.LogInformation("Registered routes: {routes}", string.Join(",\n ", routes));
-            }
-            else
-            {
-                app.Logger.LogInformation("No routes registered for this endpoint.");
-            }
-
-            #endregion
-        }
-    }
-}
+// Custom Extension to register all endpoints in the assembly
+app.RegisterApiRoutes();
 
 // Add the tenant middleware to set the tenant context based on the X-Tenant-ID header
 app.UseMiddleware<TenantMiddleware>();
-
 
 //-------------------------------------
 // Start the application

@@ -16,9 +16,9 @@ namespace Academy.Services.Api.Endpoints.Accounts.AddUserProfile
         public static void AddEndpoint(this IEndpointRouteBuilder app)
         {
             app.MapPut("/{tenant}/api/v1/users", AddUserProfile)
-                .Validate<RouteHandlerBuilder, AddUserProfileRequest>()
-                .ProducesValidationProblem()
-                .RequireAuthorization("Instructor");
+               .Validate<RouteHandlerBuilder, AddUserProfileRequest>()
+               .ProducesValidationProblem()
+               .RequireAuthorization("Instructor");
 
             // Log mapped routes
             Routes.Add("PUT: /{tenant}/api/v1/users");
@@ -101,7 +101,7 @@ namespace Academy.Services.Api.Endpoints.Accounts.AddUserProfile
                         IdentityProviderId = idpUser.Id,
 
                         TenantId = db.TenantId,
-                        IsDeleted = idpUser.IsEnabled,
+                        IsDeleted = !idpUser.IsEnabled,
                         CreatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown",
                         UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown"
                     };

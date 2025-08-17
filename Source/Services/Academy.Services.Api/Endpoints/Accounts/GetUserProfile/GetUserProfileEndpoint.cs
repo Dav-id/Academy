@@ -16,24 +16,21 @@ namespace Academy.Services.Api.Endpoints.Accounts.GetUserProfile
 
         public static void AddEndpoint(this IEndpointRouteBuilder app)
         {
-            app.MapGet("api/v1/users/{id}", async (long id, IServiceProvider services) =>
-            {
-                return await GetProfile(id, services);
-            });
+            app.MapGet("/{tenant}/api/v1/users/{id}", GetProfile);
 
             // Log mapped routes
-            Routes.Add("GET: api/v1/users/{id}");
+            Routes.Add("GET: /{tenant}/api/v1/users/{id}");
         }
 
-        private static async Task<Results<Ok<GetUserProfileResponse>, BadRequest<ErrorResponse>>> GetProfile(long id, IServiceProvider services)
+        private static async Task<Results<Ok<GetUserProfileResponse>, BadRequest<ErrorResponse>>> GetProfile(string tenant,
+            long id,
+            ILoggerFactory loggerFactory,
+            IHttpContextAccessor httpContextAccessor,
+            ApplicationDbContext db)
         {
-            await using AsyncServiceScope scope = services.CreateAsyncScope();
-
-            // Retrieve required services
-            ILoggerFactory loggerFactory = scope.ServiceProvider.GetRequiredService<ILoggerFactory>();
+            // Create a new logger instance for this endpoint, use the full name of the endpoint class for better logging context
             ILogger logger = loggerFactory.CreateLogger(typeof(GetUserProfileEndpoint).FullName ?? nameof(GetUserProfileEndpoint));
-            IHttpContextAccessor httpContextAccessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
-
+            
             //logger.LogInformation("GetProfile called with Id: {Id}", id);
 
             // Check if the user is authenticated - should be, otherwise this endpoint should not be accessible
@@ -81,23 +78,7 @@ namespace Academy.Services.Api.Endpoints.Accounts.GetUserProfile
                     )
                 );
             }
-
-            await using ApplicationDbContext db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            if (db == null)
-            {
-                logger.LogError("GetProfile failed to retrieve ApplicationDbContext");
-                return TypedResults.BadRequest(
-                    new ErrorResponse(
-                        StatusCodes.Status500InternalServerError,
-                        "Internal Server Error",
-                        "Internal Server Error",
-                        null,
-                        httpContextAccessor.HttpContext?.TraceIdentifier
-                    )
-                );
-            }
-
+            
             // Check if the user profile exists in the database
             var up = db.UserProfiles.FirstOrDefault(x => x.Id == id);
             if (up == null)
@@ -115,7 +96,7 @@ namespace Academy.Services.Api.Endpoints.Accounts.GetUserProfile
             }
 
             // Return user profile
-            return TypedResults.Ok<GetUserProfileResponse>(new(up.Id, up.FirstName, up.LastName, up.Email, up.IsEnabled));
+            return TypedResults.Ok<GetUserProfileResponse>(new(up.Id, up.FirstName, up.LastName, up.Email, up.IsDeleted));
         }
     }
 }

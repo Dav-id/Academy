@@ -1,3 +1,4 @@
+using Academy.Services.Api.Middleware;
 using Academy.Shared.Data.Contexts;
 using Academy.Shared.Data.Models.Roles;
 using Academy.Shared.Security;
@@ -73,7 +74,6 @@ builder.AddServiceDefaults();
 builder.Services.AddHttpContextAccessor();
 
 builder.AddNpgsqlDbContext<ApplicationDbContext>("Academy");
-
 
 // Add Redis distributed cache
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -315,7 +315,8 @@ builder.Services.AddScoped<IAuthClient, FusionAuthClient>(x =>
 
     ILogger<FusionAuthClient> logger = x.GetRequiredService<ILogger<FusionAuthClient>>();
     ApplicationDbContext dbContext = x.GetRequiredService<ApplicationDbContext>();
-    ICollection<IdentityProviderRoleMapping> externalRoleMappings = [.. dbContext.ExternalRoleMappings.Select(x => new IdentityProviderRoleMapping(x.Issuer, x.ExternalClaimValue, x.AppRole))];
+
+       ICollection<IdentityProviderRoleMapping> externalRoleMappings = [.. dbContext.ExternalRoleMappings.Select(x => new IdentityProviderRoleMapping(x.Issuer, x.ExternalClaimValue, x.AppRole))];
 
     return new FusionAuthClient(logger, authApiUrl, authApiKey, authTenantId, authAudience, authIssuer, externalRoleMappings);
 });
@@ -340,12 +341,7 @@ WebApplication app = builder.Build();
 using (IServiceScope serviceScope = app.Services.GetRequiredService<IServiceScopeFactory>().CreateScope())
 {
     ApplicationDbContext? context = serviceScope.ServiceProvider.GetService<ApplicationDbContext>();
-
-    if (context != null)
-    {
-        context.Database.EnsureCreated();
-        context.Database.Migrate();
-    }
+    context?.Database.Migrate();
 }
 
 app.UseForwardedHeaders();
@@ -354,56 +350,57 @@ app.UseForwardedHeaders();
 app.UseExceptionHandler();
 
 app.UseAuthentication();
+app.UseMiddleware<DatabaseUserProfileMiddleware>();
 
 // Map user profile fields from DB into User.Identity
-app.Use(async (context, next) =>
-{
-    if (context.User.Identity?.IsAuthenticated == true)
-    {
-        string? userId = context.User.FindFirst("sub")?.Value;
+//app.Use(async (context, next) =>
+//{
+//    if (context.User.Identity?.IsAuthenticated == true)
+//    {
+//        string? userId = context.User.FindFirst("sub")?.Value;
 
-        if (!string.IsNullOrEmpty(userId))
-        {
-            //Load user profile from DB
-            ApplicationDbContext db = context.RequestServices.GetRequiredService<ApplicationDbContext>();
-            IAuthClient authClient = context.RequestServices.GetRequiredService<IAuthClient>();
-            Academy.Shared.Data.Models.Accounts.UserProfile? userProfile = await db.UserProfiles.FirstOrDefaultAsync(x => x.IdentityProvider == authClient.ProviderName && x.IdentityProviderId == userId);
+//        if (!string.IsNullOrEmpty(userId))
+//        {
+//            //Load user profile from DB
+//            ApplicationDbContext db = context.RequestServices.GetRequiredService<ApplicationDbContext>();
+//            IAuthClient authClient = context.RequestServices.GetRequiredService<IAuthClient>();
+//            Academy.Shared.Data.Models.Accounts.UserProfile? userProfile = await db.UserProfiles.FirstOrDefaultAsync(x => x.IdentityProvider == authClient.ProviderName && x.IdentityProviderId == userId);
 
-            if (userProfile != null)
-            {
-                foreach (Claim claim in context.User.Claims)
-                {
-                    // Remove existing claims that we will replace
-                    if (claim.Type == "FirstName" || claim.Type == "LastName" || claim.Type == ClaimTypes.Email || claim.Type == "Id" || claim.Type == "IdentityProvider" || claim.Type == "IdentityProviderId")
-                    {
-                        ((ClaimsIdentity)context.User.Identity).RemoveClaim(claim);
-                    }
-                }
+//            if (userProfile != null)
+//            {
+//                foreach (Claim claim in context.User.Claims)
+//                {
+//                    // Remove existing claims that we will replace
+//                    if (claim.Type == "FirstName" || claim.Type == "LastName" || claim.Type == ClaimTypes.Email || claim.Type == "Id" || claim.Type == "IdentityProvider" || claim.Type == "IdentityProviderId")
+//                    {
+//                        ((ClaimsIdentity)context.User.Identity).RemoveClaim(claim);
+//                    }
+//                }
 
-                List<Claim> claims = [
-                    new("Id", userProfile.Id.ToString()),
-                    new Claim("IdentityProvider", userProfile.IdentityProvider),
-                    new Claim("IdentityProviderId", userProfile.IdentityProviderId),
-                    new("FirstName", userProfile.FirstName),
-                    new("LastName", userProfile.LastName),
-                    new("FullName", userProfile.FirstName + (!string.IsNullOrEmpty(userProfile.FirstName) ? " " : "") + userProfile.LastName),
-                    new(ClaimTypes.Email, userProfile.Email),
-                ];
+//                List<Claim> claims = [
+//                    new("Id", userProfile.Id.ToString()),
+//                    new Claim("IdentityProvider", userProfile.IdentityProvider),
+//                    new Claim("IdentityProviderId", userProfile.IdentityProviderId),
+//                    new("FirstName", userProfile.FirstName),
+//                    new("LastName", userProfile.LastName),
+//                    new("FullName", userProfile.FirstName + (!string.IsNullOrEmpty(userProfile.FirstName) ? " " : "") + userProfile.LastName),
+//                    new(ClaimTypes.Email, userProfile.Email),
+//                ];
 
-                claims.AddRange(context.User.Claims);
+//                claims.AddRange(context.User.Claims);
 
-                // Create a new identity and principal
-                ClaimsIdentity newIdentity = new(claims: claims, context.User.Identity.AuthenticationType, nameType: "id", roleType: "roles");
-                // Replace the current user
-                context.User = new(newIdentity);
+//                // Create a new identity and principal
+//                ClaimsIdentity newIdentity = new(claims: claims, context.User.Identity.AuthenticationType, nameType: "id", roleType: "roles");
+//                // Replace the current user
+//                context.User = new(newIdentity);
 
-                var isAdmin = context.User.IsInRole("Administrator");
-            }
-        }
-    }
+//                var isAdmin = context.User.IsInRole("Administrator");
+//            }
+//        }
+//    }
 
-    await next();
-});
+//    await next();
+//});
 
 app.UseAuthorization();
 
@@ -430,7 +427,6 @@ app.UseRateLimiter();
 
 // Add localization middleware
 app.UseRequestLocalization();
-
 
 //-------------------------------------
 // Register our endpoints
@@ -511,6 +507,10 @@ foreach (Type endpointType in AppDomain.CurrentDomain.GetAssemblies().SelectMany
         }
     }
 }
+
+// Add the tenant middleware to set the tenant context based on the X-Tenant-ID header
+app.UseMiddleware<TenantMiddleware>();
+
 
 //-------------------------------------
 // Start the application

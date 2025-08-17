@@ -15,26 +15,24 @@ namespace Academy.Services.Api.Endpoints.Accounts.AddUserProfile
 
         public static void AddEndpoint(this IEndpointRouteBuilder app)
         {
-            app.MapPut("api/v1/users", async (AddUserProfileRequest request, IServiceProvider services) =>
-            {
-                return await AddUserProfile(request, services);
-            })
-            .Validate<RouteHandlerBuilder, AddUserProfileRequest>()
-            .ProducesValidationProblem()
-            .RequireAuthorization("Instructor");
+            app.MapPut("/{tenant}/api/v1/users", AddUserProfile)
+                .Validate<RouteHandlerBuilder, AddUserProfileRequest>()
+                .ProducesValidationProblem()
+                .RequireAuthorization("Instructor");
 
             // Log mapped routes
-            Routes.Add("PUT: api/v1/users");
+            Routes.Add("PUT: /{tenant}/api/v1/users");
         }
 
-        private static async Task<Results<Ok<AddUserProfileResponse>, BadRequest<ErrorResponse>>> AddUserProfile(AddUserProfileRequest request, IServiceProvider services)
+        private static async Task<Results<Ok<AddUserProfileResponse>, BadRequest<ErrorResponse>>> AddUserProfile(
+            AddUserProfileRequest request,
+            ILoggerFactory loggerFactory,
+            IHttpContextAccessor httpContextAccessor,
+            IAuthClient authClient,
+            ApplicationDbContext db)
         {
-            await using AsyncServiceScope scope = services.CreateAsyncScope();
-
-            ILoggerFactory loggerFactory = scope.ServiceProvider.GetRequiredService<ILoggerFactory>();
+            // Create a new logger instance for this endpoint, use the full name of the endpoint class for better logging context
             ILogger logger = loggerFactory.CreateLogger(typeof(AddUserProfileEndpoint).FullName ?? nameof(AddUserProfileEndpoint));
-            IHttpContextAccessor httpContextAccessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
-            IAuthClient authClient = scope.ServiceProvider.GetRequiredService<IAuthClient>();
 
             if (authClient == null)
             {
@@ -87,22 +85,6 @@ namespace Academy.Services.Api.Endpoints.Accounts.AddUserProfile
                 );
             }
 
-            await using ApplicationDbContext db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            if (db == null)
-            {
-                logger.LogError("GetProfile failed to retrieve ApplicationDbContext");
-                return TypedResults.BadRequest(
-                    new ErrorResponse(
-                        StatusCodes.Status500InternalServerError,
-                        "Internal Server Error",
-                        "Internal Server Error",
-                        null,
-                        httpContextAccessor.HttpContext?.TraceIdentifier
-                    )
-                );
-            }
-
             // Check if the user profile already exists in the database
             Shared.Data.Models.Accounts.UserProfile? up = await db.UserProfiles.FirstOrDefaultAsync(x => x.IdentityProvider == authClient.ProviderName && x.IdentityProviderId == idpUser.Id);
             if (up == null)
@@ -118,7 +100,8 @@ namespace Academy.Services.Api.Endpoints.Accounts.AddUserProfile
                         IdentityProvider = authClient.ProviderName,
                         IdentityProviderId = idpUser.Id,
 
-                        IsEnabled = idpUser.IsEnabled,
+                        TenantId = db.TenantId,
+                        IsDeleted = idpUser.IsEnabled,
                         CreatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown",
                         UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown"
                     };
@@ -143,11 +126,11 @@ namespace Academy.Services.Api.Endpoints.Accounts.AddUserProfile
                 }
             }
             // If the user profile already exists, check if it is enabled, if not, enable it
-            else if (!up.IsEnabled)
+            else if (!up.IsDeleted)
             {
                 try
                 {
-                    up.IsEnabled = true;
+                    up.IsDeleted = true;
                     await db.SaveChangesAsync();
                 }
                 catch (Exception ex)
@@ -166,7 +149,7 @@ namespace Academy.Services.Api.Endpoints.Accounts.AddUserProfile
             }
 
             // Return the user profile response
-            return TypedResults.Ok<AddUserProfileResponse>(new(up.Id, up.FirstName, up.LastName, up.Email, up.IsEnabled));
+            return TypedResults.Ok<AddUserProfileResponse>(new(up.Id, up.FirstName, up.LastName, up.Email, up.IsDeleted));
         }
     }
 }

@@ -1,5 +1,4 @@
-﻿using Academy.Shared.Data.Models;
-using Academy.Shared.Data.Models.Accounts;
+﻿using Academy.Shared.Data.Models.Accounts;
 using Academy.Shared.Data.Models.Courses;
 using Academy.Shared.Data.Models.Roles;
 using Academy.Shared.Data.Models.Tenants;

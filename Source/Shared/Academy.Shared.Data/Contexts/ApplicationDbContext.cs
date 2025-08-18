@@ -1,5 +1,7 @@
 ﻿using Academy.Shared.Data.Models.Accounts;
+using Academy.Shared.Data.Models.Assessments;
 using Academy.Shared.Data.Models.Courses;
+using Academy.Shared.Data.Models.Lessons;
 using Academy.Shared.Data.Models.Roles;
 using Academy.Shared.Data.Models.Tenants;
 
@@ -17,7 +19,6 @@ namespace Academy.Shared.Data.Contexts
         {
         }
 
-        // This property is used to filter data based on the tenant ID.
         /// <summary>
         /// The ID of the tenant for which the current context is being used.
         /// </summary>
@@ -26,7 +27,6 @@ namespace Academy.Shared.Data.Contexts
         /// <summary>
         /// Sets the tenant ID for the current context.
         /// </summary>
-        /// <param name="tenantId"></param>
         public void SetTenant(long tenantId)
         {
             TenantId = tenantId;
@@ -37,13 +37,60 @@ namespace Academy.Shared.Data.Contexts
             // Accounts
             modelBuilder.Entity<UserProfile>()
                         .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
-            
+
+            // Assessments
+            modelBuilder.Entity<Assessment>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+            modelBuilder.Entity<AssessmentQuestion>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+            modelBuilder.Entity<AssessmentQuestionAnswer>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+            modelBuilder.Entity<AssessmentQuestionAnswerOption>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+            modelBuilder.Entity<AssessmentQuestionOption>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+
             //Courses
             modelBuilder.Entity<Course>()
                         .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+            modelBuilder.Entity<CourseCompletion>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+            modelBuilder.Entity<CourseEnrollment>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
             modelBuilder.Entity<CourseModule>()
                         .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
-            
+
+            //Lessons
+            modelBuilder.Entity<Lesson>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+            modelBuilder.Entity<LessonCompletion>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+            modelBuilder.Entity<LessonContent>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+
+            // Composite keys for prerequisite relationships
+            modelBuilder.Entity<LessonPrerequisiteAssessment>()
+                        .HasKey(lp => new { lp.LessonId, lp.PrerequisiteAssessmentId });
+
+            modelBuilder.Entity<LessonPrerequisiteAssessment>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId)
+                        .HasOne(lp => lp.Lesson)
+                        .WithMany(l => l.PrerequisiteAssessments)
+                        .HasForeignKey(lp => lp.LessonId)
+                        .OnDelete(DeleteBehavior.Restrict);
+
+            // Composite key for LessonPrerequisiteLesson
+            modelBuilder.Entity<LessonPrerequisiteLesson>()
+                    .HasKey(lp => new { lp.LessonId, lp.PrerequisiteLessonId });
+
+            modelBuilder.Entity<LessonPrerequisiteLesson>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId)
+                        .HasOne(lp => lp.Lesson)
+                        .WithMany(l => l.PrerequisiteLessons)
+                        .HasForeignKey(lp => lp.LessonId)
+                        .OnDelete(DeleteBehavior.Restrict);
+
+
             //Roles
             modelBuilder.Entity<ExternalRoleMapping>()
                         .HasQueryFilter(c => !c.IsDeleted);
@@ -54,16 +101,32 @@ namespace Academy.Shared.Data.Contexts
         }
 
         // Accounts
-        public DbSet<UserProfile>           UserProfiles            { get; set; }
+        public DbSet<UserProfile>                       UserProfiles                        { get; set; }
+
+        // Assessments
+        public DbSet<Assessment>                        Assessments                         { get; set; }
+        public DbSet<AssessmentQuestion>                AssessmentQuestions                 { get; set; }
+        public DbSet<AssessmentQuestionAnswer>          AssessmentQuestionAnswers           { get; set; }
+        public DbSet<AssessmentQuestionAnswerOption>    AssessmentQuestionAnswerOptions     { get; set; }
+        public DbSet<AssessmentQuestionOption>          AssessmentQuestionOptions           { get; set; }
 
         // Courses
-        public DbSet<Course>                Courses                 { get; set; }
+        public DbSet<Course>                            Courses                             { get; set; }
+        public DbSet<CourseCompletion>                  CourseCompletions                   { get; set; }
+        public DbSet<CourseEnrollment>                  CourseEnrollments                   { get; set; }
+        public DbSet<CourseModule>                      CourseModules                       { get; set; }
+
+        // Lessons
+        public DbSet<Lesson>                            Lessons                             { get; set; }
+        public DbSet<LessonCompletion>                  LessonCompletions                   { get; set; }
+        public DbSet<LessonContent>                     LessonContents                      { get; set; }
+        public DbSet<LessonPrerequisiteAssessment>      LessonPrerequisiteAssessments       { get; set; }
+        public DbSet<LessonPrerequisiteLesson>          LessonPrerequisiteLessons           { get; set; }
 
         // Roles
-        public DbSet<ExternalRoleMapping>   ExternalRoleMappings    { get; set; }
+        public DbSet<ExternalRoleMapping>               ExternalRoleMappings                { get; set; }
 
         // Tenants
-        public DbSet<Tenant>                Tenants                 { get; set; }
-
+        public DbSet<Tenant>                            Tenants                             { get; set; }
     }
 }

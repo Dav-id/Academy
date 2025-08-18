@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Academy.Shared.Data.Models.Assessments
 {
-    public class AssessmentQuestionAnswer
+    public class AssessmentQuestionAnswer : BaseModel
     {
         [Required]
         public long                                         UserProfileId               { get; set; }

@@ -1,20 +1,21 @@
+using Academy.Shared.Data.Models.Assessments;
+
 using System.ComponentModel.DataAnnotations;
-using Academy.Shared.Data.Models.Courses;
 
 namespace Academy.Shared.Data.Models.Lessons
 {
+    public class LessonPrerequisite : BaseModel
+    {
+        [Required]
+        public long         LessonId                    { get; set; } // The lesson that has a prerequisite
+        public Lesson?      Lesson                      { get; set; }
 
-public class LessonPrerequisite : BaseModel
-{
-    public Guid Id { get; set; }
+        public int          Order                       { get; set; }
 
-    [Required]
-    public Guid LessonId { get; set; } // The lesson that has a prerequisite
-    public Lesson Lesson { get; set; }
-
-    [Required]
-    public Guid PrerequisiteLessonId { get; set; } // The lesson that must be completed first
-    public Lesson PrerequisiteLesson { get; set; }
-}
-
+        public long?        PrerequisiteLessonId        { get; set; } // The lesson that must be completed
+        public Lesson?      PrerequisiteLesson          { get; set; }
+        
+        public long?        PrerequisiteAssessmentId    { get; set; } // The quiz that must be completed 
+        public Assessment?  PrerequisiteAssessment      { get; set; }
+    }
 }

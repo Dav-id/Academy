@@ -39,11 +39,11 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 //-------------------------------------
 
 // Used by Vault for segregation of credentials
-string academyInstance = builder.Configuration["academy-instance"] ?? "";
+string academyInstance = builder.Configuration["academy-instance"] ?? string.Empty;
 
 // Default to using Vault which can be launched from the separate docker-compose.yaml file. You can override this by setting it in the user secrets.
-string vaultUrl = builder.Configuration["vault-url"] ?? "";
-string vaultToken = builder.Configuration["vault-token"] ?? "";
+string vaultUrl = builder.Configuration["vault-url"] ?? string.Empty;
+string vaultToken = builder.Configuration["vault-token"] ?? string.Empty;
 
 // Initialize one of the several auth methods.
 IAuthMethodInfo authMethod = new TokenAuthMethodInfo(vaultToken);
@@ -56,12 +56,12 @@ VaultClient vaultClient = new(vaultClientSettings);
 // We have a KeyValue secrets engine called kv-v2 with a secret matching the academy-instance and containing key value pairs below
 Secret<SecretData> secret = await vaultClient.V1.Secrets.KeyValue.V2.ReadSecretAsync(academyInstance);
 
-string authUrl = ((JsonElement)secret.Data.Data["auth-url"]).GetString() ?? "";
-string authAudience = ((JsonElement)secret.Data.Data["auth-audience"]).GetString() ?? "";
-string authIssuer = ((JsonElement)secret.Data.Data["auth-issuer"]).GetString() ?? "";
-string authOpenIdConfiguration = ((JsonElement)secret.Data.Data["auth-openid-configuration"]).GetString() ?? "";
+string authUrl = ((JsonElement)secret.Data.Data["auth-url"]).GetString() ?? string.Empty;
+string authAudience = ((JsonElement)secret.Data.Data["auth-audience"]).GetString() ?? string.Empty;
+string authIssuer = ((JsonElement)secret.Data.Data["auth-issuer"]).GetString() ?? string.Empty;
+string authOpenIdConfiguration = ((JsonElement)secret.Data.Data["auth-openid-configuration"]).GetString() ?? string.Empty;
 
-string redisConnectionString = ((JsonElement)secret.Data.Data["redis-connection-string"]).GetString() ?? "";
+string redisConnectionString = ((JsonElement)secret.Data.Data["redis-connection-string"]).GetString() ?? string.Empty;
 
 //-------------------------------------
 // Build the application
@@ -206,7 +206,7 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("Administrator", p => p.RequireRole("Administrator"));
     options.AddPolicy("Instructor", p => p.RequireAssertion(ctx => ctx.User.IsInRole("Administrator") || ctx.User.IsInRole("Instructor")));
-    options.AddPolicy("Learner", p => p.RequireAssertion(ctx => ctx.User.IsInRole("Administrator") || ctx.User.IsInRole("Instructor") || ctx.User.IsInRole("Learner")));
+    options.AddPolicy("Student", p => p.RequireAssertion(ctx => ctx.User.IsInRole("Administrator") || ctx.User.IsInRole("Instructor") || ctx.User.IsInRole("Learner")));
 
     options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
                                 .RequireAuthenticatedUser()
@@ -303,12 +303,12 @@ builder.Services.AddRateLimiter(options =>
 // Add FusionAuth client
 builder.Services.AddScoped<IAuthClient, FusionAuthClient>(x =>
 {
-    string authApiUrl = ((JsonElement)secret.Data.Data["auth-fusion-apiurl"]).GetString() ?? "";
-    string authApiKey = ((JsonElement)secret.Data.Data["auth-fusion-apikey"]).GetString() ?? "";
-    string authTenantId = ((JsonElement)secret.Data.Data["auth-fusion-tenantid"]).GetString() ?? "";
+    string authApiUrl = ((JsonElement)secret.Data.Data["auth-fusion-apiurl"]).GetString() ?? string.Empty;
+    string authApiKey = ((JsonElement)secret.Data.Data["auth-fusion-apikey"]).GetString() ?? string.Empty;
+    string authTenantId = ((JsonElement)secret.Data.Data["auth-fusion-tenantid"]).GetString() ?? string.Empty;
 
-    string authAudience = ((JsonElement)secret.Data.Data["auth-audience"]).GetString() ?? "";
-    string authIssuer = ((JsonElement)secret.Data.Data["auth-issuer"]).GetString() ?? "";
+    string authAudience = ((JsonElement)secret.Data.Data["auth-audience"]).GetString() ?? string.Empty;
+    string authIssuer = ((JsonElement)secret.Data.Data["auth-issuer"]).GetString() ?? string.Empty;
 
     ILogger<FusionAuthClient> logger = x.GetRequiredService<ILogger<FusionAuthClient>>();
     ApplicationDbContext dbContext = x.GetRequiredService<ApplicationDbContext>();
@@ -321,11 +321,11 @@ builder.Services.AddScoped<IAuthClient, FusionAuthClient>(x =>
 // Add S3 storage client
 builder.Services.AddScoped<IStorageClient, S3StorageClient>(x =>
 {
-    string s3ApiUrl = ((JsonElement)secret.Data.Data["s3-apiurl"]).GetString() ?? "";
-    string s3AccessKey = ((JsonElement)secret.Data.Data["s3-accesskey"]).GetString() ?? "";
-    string s3SecretKey = ((JsonElement)secret.Data.Data["s3-secretkey"]).GetString() ?? "";
+    string s3ApiUrl = ((JsonElement)secret.Data.Data["s3-apiurl"]).GetString() ?? string.Empty;
+    string s3AccessKey = ((JsonElement)secret.Data.Data["s3-accesskey"]).GetString() ?? string.Empty;
+    string s3SecretKey = ((JsonElement)secret.Data.Data["s3-secretkey"]).GetString() ?? string.Empty;
     string s3UseSSL = ((JsonElement)secret.Data.Data["s3-use-ssl"]).GetString() ?? "true";
-    string s3Bucket = ((JsonElement)secret.Data.Data["s3-bucket"]).GetString() ?? "";
+    string s3Bucket = ((JsonElement)secret.Data.Data["s3-bucket"]).GetString() ?? string.Empty;
 
     ILogger<S3StorageClient> logger = x.GetRequiredService<ILogger<S3StorageClient>>();
 

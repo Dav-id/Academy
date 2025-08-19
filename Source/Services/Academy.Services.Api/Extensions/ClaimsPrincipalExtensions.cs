@@ -19,6 +19,14 @@ namespace Academy.Services.Api.Extensions
             return userClaim;
         }
 
+        public static long? GetUserId(this ClaimsPrincipal user)
+        {
+            Claim? idClaim = user.FindFirst("Id") ?? user.FindFirst(ClaimTypes.NameIdentifier);
+            if (idClaim != null && long.TryParse(idClaim.Value, out long id))
+                return id;
+            return null;
+        }
+
         public static long GetUserId(this ClaimsIdentity user)
         {
             Claim claim = GetClaim(user, "id");

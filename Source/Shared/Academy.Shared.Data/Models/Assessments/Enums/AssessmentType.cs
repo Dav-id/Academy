@@ -3,6 +3,7 @@
     public enum AssessmentType
     {
         Quiz,
-        Assessment
+        Survey,
+        Exam
     }
 }

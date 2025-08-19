@@ -106,7 +106,7 @@ namespace Academy.Services.Api.Endpoints.Assets.AddAsset
             }
 
             // Validate the file type
-            var allowedFileTypes = new[] { "image/jpeg", "image/png", "application/pdf" };
+            string[] allowedFileTypes = new[] { "image/jpeg", "image/png", "application/pdf" };
             if (!allowedFileTypes.Contains(request.File.ContentType))
             {
                 logger.LogError("AddAsset called with an unsupported file type: {ContentType}", request.File.ContentType);

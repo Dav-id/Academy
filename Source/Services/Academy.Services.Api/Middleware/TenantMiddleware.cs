@@ -18,7 +18,7 @@ namespace Academy.Services.Api.Middleware
             {
 
                 string cacheKey = $"tenant:{tenantStub.ToLower()}";
-                string tenantIdString = await cache.GetStringAsync(cacheKey) ?? "";
+                string tenantIdString = await cache.GetStringAsync(cacheKey) ?? string.Empty;
                 long tenantId = 0;
                 if (string.IsNullOrEmpty(tenantIdString))
                 {

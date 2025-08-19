@@ -18,9 +18,9 @@ namespace Academy.Services.Api.Middleware
                                                                                                 && !type.IsAbstract
                                                                                                 && type.Namespace?.StartsWith("Academy.Services.Api.Endpoints") == true))
             {
-                if (endpointType?.DeclaringType?.Name.EndsWith("Endpoint") ?? false)
+                if (endpointType?.DeclaringType?.Name.EndsWith("Endpoints") ?? false)
                 {
-                    MethodInfo? method = endpointType.DeclaringType.GetMethod("AddEndpoint", BindingFlags.Static | BindingFlags.Public);
+                    MethodInfo? method = endpointType.DeclaringType.GetMethod("AddEndpoints", BindingFlags.Static | BindingFlags.Public);
                     if (method == null)
                     {
                         // If the method is not found, throw an exception
@@ -63,7 +63,7 @@ namespace Academy.Services.Api.Middleware
                         //log the routes in a single LogInformation
                         if (routes.Count > 0)
                         {
-                            app.Logger.LogInformation("Registered routes: {routes}", string.Join(",\n ", routes));
+                            app.Logger.LogInformation("Registered routes:\n {routes}", string.Join(",\n ", routes));
                         }
                         else
                         {

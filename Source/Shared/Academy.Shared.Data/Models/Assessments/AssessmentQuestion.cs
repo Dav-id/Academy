@@ -1,3 +1,5 @@
+using Academy.Shared.Data.Models.Assessments.Enums;
+
 using System.ComponentModel.DataAnnotations;
 
 namespace Academy.Shared.Data.Models.Assessments
@@ -18,14 +20,5 @@ namespace Academy.Shared.Data.Models.Assessments
         public ICollection<AssessmentQuestionOption>    Options                             { get; set; } = [];
         public int?                                     MinimumOptionChoiceSelections       { get; set; }
         public int?                                     MaximumOptionChoiceSelections       { get; set; }
-    }
-
-    public enum QuizQuestionType
-    {
-        MultipleChoice,
-        SingleChoice,
-        TrueFalse,
-        ShortAnswer,
-        Essay
     }
 }

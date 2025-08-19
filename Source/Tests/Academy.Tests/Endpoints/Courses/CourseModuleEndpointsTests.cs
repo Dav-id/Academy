@@ -33,7 +33,7 @@ namespace Academy.Tests.Endpoints.Courses
 
             db.Tenants.Add(new Shared.Data.Models.Tenants.Tenant { Id = 1, UrlStub = "tenant", Title = "Tenant 1", Description = "Desc 1", IsDeleted = false });
 
-            Shared.Data.Models.Courses.Course c = new Shared.Data.Models.Courses.Course
+            Shared.Data.Models.Courses.Course c = new()
             {
                 Id = 1,
                 Title = "Course 1",
@@ -130,11 +130,11 @@ namespace Academy.Tests.Endpoints.Courses
             DbContextOptions<ApplicationDbContext> options = new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseInMemoryDatabase(databaseName: "CreateModuleDb_" + System.Guid.NewGuid())
                 .Options;
-            ApplicationDbContext db = new ApplicationDbContext(options);
+            ApplicationDbContext db = new(options);
             db.Tenants.Add(new Shared.Data.Models.Tenants.Tenant { Id = 1, UrlStub = "tenant", Title = "Tenant 1", Description = "Desc 1", IsDeleted = false });
             db.Courses.Add(new Shared.Data.Models.Courses.Course { Id = 1, Title = "Course 1", TenantId = 1 });
             db.SaveChanges();
-            CourseModuleContracts.CreateModuleRequest request = new CourseModuleContracts.CreateModuleRequest(1, "New Module", "A new module", 3);
+            CourseModuleContracts.CreateModuleRequest request = new(1, "New Module", "A new module", 3);
 
             Guid userId = Guid.Parse("36947696-2fd9-45c0-b408-eb4249e13eb8");
             FakeHttpContextAccessor httpContextAccessor = new(1, isInstructor: true);
@@ -155,7 +155,7 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithModules();
-            CourseModuleContracts.UpdateModuleRequest request = new CourseModuleContracts.UpdateModuleRequest(101, 1, "Updated Module", "Updated Desc", 5);
+            CourseModuleContracts.UpdateModuleRequest request = new(101, 1, "Updated Module", "Updated Desc", 5);
 
             FakeHttpContextAccessor httpContextAccessor = new(1, isInstructor: true);
 
@@ -192,7 +192,7 @@ namespace Academy.Tests.Endpoints.Courses
             public FakeHttpContextAccessor(long? userId, bool isInstructor = false)
             {
                 List<System.Security.Claims.Claim> claims = userId.HasValue
-                    ? new List<System.Security.Claims.Claim> { new System.Security.Claims.Claim(ClaimTypes.NameIdentifier, userId.Value.ToString()) }
+                    ? new List<System.Security.Claims.Claim> { new(ClaimTypes.NameIdentifier, userId.Value.ToString()) }
                     : new();
 
                 if (isInstructor)

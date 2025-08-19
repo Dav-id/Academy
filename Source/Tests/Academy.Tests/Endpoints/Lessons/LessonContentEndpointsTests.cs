@@ -1,13 +1,10 @@
 using Academy.Services.Api.Endpoints;
 using Academy.Services.Api.Endpoints.Lessons;
 using Academy.Shared.Data.Contexts;
+
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Academy.Tests.Endpoints.Lessons
 {
@@ -20,7 +17,7 @@ namespace Academy.Tests.Endpoints.Lessons
                 .UseInMemoryDatabase(databaseName: "LessonContentDb_" + System.Guid.NewGuid())
                 .Options;
 
-            ApplicationDbContext db = new ApplicationDbContext(options);
+            ApplicationDbContext db = new(options);
             db.Tenants.Add(new Shared.Data.Models.Tenants.Tenant { Id = 1, UrlStub = "tenant", Title = "Tenant 1", Description = "Desc 1", IsDeleted = false });
             db.Courses.Add(new Shared.Data.Models.Courses.Course { Id = 1, Title = "Course 1", TenantId = 1 });
             db.CourseModules.Add(new Shared.Data.Models.Courses.CourseModule { Id = 10, Title = "Module 1", CourseId = 1, TenantId = 1, Order = 1 });
@@ -85,8 +82,8 @@ namespace Academy.Tests.Endpoints.Lessons
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithLessonContent();
-            LessonContentContracts.CreateLessonContentRequest request = new LessonContentContracts.CreateLessonContentRequest(100, "PDF", "Content 3");
-            FakeHttpContextAccessor httpContextAccessor = new FakeHttpContextAccessor("instructor", isInstructor: true);
+            LessonContentContracts.CreateLessonContentRequest request = new(100, "PDF", "Content 3");
+            FakeHttpContextAccessor httpContextAccessor = new("instructor", isInstructor: true);
 
             // Act
             Results<Ok<LessonContentContracts.LessonContentResponse>, BadRequest<Services.Api.Endpoints.ErrorResponse>> result = await LessonContentEndpoints.CreateLessonContent("tenant", 100, request, db, httpContextAccessor);
@@ -103,8 +100,8 @@ namespace Academy.Tests.Endpoints.Lessons
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithLessonContent();
-            LessonContentContracts.UpdateLessonContentRequest request = new LessonContentContracts.UpdateLessonContentRequest(1000, 100, "Text", "Updated Content");
-            FakeHttpContextAccessor httpContextAccessor = new FakeHttpContextAccessor("instructor", isInstructor: true);
+            LessonContentContracts.UpdateLessonContentRequest request = new(1000, 100, "Text", "Updated Content");
+            FakeHttpContextAccessor httpContextAccessor = new("instructor", isInstructor: true);
 
             // Act
             Results<Ok<LessonContentContracts.LessonContentResponse>, BadRequest<Services.Api.Endpoints.ErrorResponse>> result = await LessonContentEndpoints.UpdateLessonContent("tenant", 100, 1000, request, db, httpContextAccessor);
@@ -120,7 +117,7 @@ namespace Academy.Tests.Endpoints.Lessons
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithLessonContent();
-            FakeHttpContextAccessor httpContextAccessor = new FakeHttpContextAccessor("instructor", isInstructor: true);
+            FakeHttpContextAccessor httpContextAccessor = new("instructor", isInstructor: true);
 
             // Act
             Results<Ok, BadRequest<Services.Api.Endpoints.ErrorResponse>> result = await LessonContentEndpoints.DeleteLessonContent("tenant", 100, 1000, db, httpContextAccessor);
@@ -128,7 +125,7 @@ namespace Academy.Tests.Endpoints.Lessons
             // Assert
             Ok? okResult = result.Result as Ok;
             Assert.IsNotNull(okResult);
-            Assert.IsTrue(db.LessonContents.Count() == 1);
+            Assert.AreEqual(1, db.LessonContents.Count());
         }
 
         private class FakeHttpContextAccessor : IHttpContextAccessor
@@ -137,13 +134,17 @@ namespace Academy.Tests.Endpoints.Lessons
 
             public FakeHttpContextAccessor(string? userName, bool isInstructor = false)
             {
-                List<System.Security.Claims.Claim> claims = new List<System.Security.Claims.Claim>();
+                List<System.Security.Claims.Claim> claims = new();
                 if (!string.IsNullOrEmpty(userName))
+                {
                     claims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, userName));
+                }
                 if (isInstructor)
+                {
                     claims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Instructor"));
+                }
 
-                System.Security.Claims.ClaimsPrincipal user = new System.Security.Claims.ClaimsPrincipal(
+                System.Security.Claims.ClaimsPrincipal user = new(
                     new System.Security.Claims.ClaimsIdentity(claims, "TestAuth")
                 );
                 HttpContext = new DefaultHttpContext { User = user };

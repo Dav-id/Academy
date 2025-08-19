@@ -17,7 +17,7 @@ namespace Academy.Tests.Endpoints.Courses
                 .UseInMemoryDatabase(databaseName: "CompletionsDb_" + Guid.NewGuid())
                 .Options;
 
-            ApplicationDbContext db = new ApplicationDbContext(options);
+            ApplicationDbContext db = new(options);
             db.Courses.Add(new Shared.Data.Models.Courses.Course { Id = 1, Title = "Course 1" });
             db.UserProfiles.Add(new Shared.Data.Models.Accounts.UserProfile
             {
@@ -57,9 +57,8 @@ namespace Academy.Tests.Endpoints.Courses
                 IdentityProviderId = "jane"
             });
             db.SaveChanges();
-            FakeHttpContextAccessor httpContextAccessor = new FakeHttpContextAccessor(userId: 20);
-            CourseCompletionContracts.SubmitCompletionRequest request = new CourseCompletionContracts.SubmitCompletionRequest
-            (
+            FakeHttpContextAccessor httpContextAccessor = new(userId: 20);
+            CourseCompletionContracts.SubmitCompletionRequest request = new            (
                 CourseId: 1,
                 UserProfileId: 20,
                 IsPassed: true,
@@ -83,9 +82,8 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithCompletions();
-            FakeHttpContextAccessor httpContextAccessor = new FakeHttpContextAccessor(userId: 10);
-            CourseCompletionContracts.SubmitCompletionRequest request = new CourseCompletionContracts.SubmitCompletionRequest
-            (
+            FakeHttpContextAccessor httpContextAccessor = new(userId: 10);
+            CourseCompletionContracts.SubmitCompletionRequest request = new            (
                 CourseId: 1,
                 UserProfileId: 10,
                 IsPassed: true,
@@ -108,9 +106,8 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithCompletions();
-            FakeHttpContextAccessor httpContextAccessor = new FakeHttpContextAccessor(userId: null);
-            CourseCompletionContracts.SubmitCompletionRequest request = new CourseCompletionContracts.SubmitCompletionRequest
-            (
+            FakeHttpContextAccessor httpContextAccessor = new(userId: null);
+            CourseCompletionContracts.SubmitCompletionRequest request = new            (
                 CourseId: 1,
                 UserProfileId: 10,
                 IsPassed: true,
@@ -132,9 +129,8 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithCompletions();
-            FakeHttpContextAccessor httpContextAccessor = new FakeHttpContextAccessor(userId: 999);
-            CourseCompletionContracts.SubmitCompletionRequest request = new CourseCompletionContracts.SubmitCompletionRequest
-            (
+            FakeHttpContextAccessor httpContextAccessor = new(userId: 999);
+            CourseCompletionContracts.SubmitCompletionRequest request = new            (
                 CourseId: 1,
                 UserProfileId: 999,
                 IsPassed: true,
@@ -177,7 +173,7 @@ namespace Academy.Tests.Endpoints.Courses
                 System.Security.Claims.Claim[] claims = userId.HasValue
                     ? new[] { new System.Security.Claims.Claim("Id", userId.Value.ToString()) }
                     : new System.Security.Claims.Claim[0];
-                System.Security.Claims.ClaimsPrincipal user = new System.Security.Claims.ClaimsPrincipal(
+                System.Security.Claims.ClaimsPrincipal user = new(
                     new System.Security.Claims.ClaimsIdentity(claims, "TestAuth")
                 );
                 HttpContext = new DefaultHttpContext { User = user };

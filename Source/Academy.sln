@@ -40,6 +40,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Data", "Data", "{A56D2EDC-2
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Localisation", "Localisation", "{B2FAAFBE-F77A-4B0D-A652-4E560FEB5CF0}"
 EndProject
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "academy.clients.web", "Clients\Academy.Clients.Web\academy.clients.web.esproj", "{3AC9C28C-5FB0-B107-0299-6C7930FCCCBF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -86,6 +88,12 @@ Global
 		{95C8603E-D30F-41D5-A234-DA833BFC0A23}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{95C8603E-D30F-41D5-A234-DA833BFC0A23}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{95C8603E-D30F-41D5-A234-DA833BFC0A23}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3AC9C28C-5FB0-B107-0299-6C7930FCCCBF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3AC9C28C-5FB0-B107-0299-6C7930FCCCBF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3AC9C28C-5FB0-B107-0299-6C7930FCCCBF}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{3AC9C28C-5FB0-B107-0299-6C7930FCCCBF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3AC9C28C-5FB0-B107-0299-6C7930FCCCBF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3AC9C28C-5FB0-B107-0299-6C7930FCCCBF}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -105,6 +113,7 @@ Global
 		{913A1916-E6A4-4D36-B0B8-A891FEDCD639} = {8917F34E-5D61-488B-8405-CF114201052A}
 		{A56D2EDC-2EC5-46C1-A634-42E9703765DA} = {8917F34E-5D61-488B-8405-CF114201052A}
 		{B2FAAFBE-F77A-4B0D-A652-4E560FEB5CF0} = {8917F34E-5D61-488B-8405-CF114201052A}
+		{3AC9C28C-5FB0-B107-0299-6C7930FCCCBF} = {7269B1AF-005C-49C9-83A2-CA9FAE580193}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {04D5BE8A-130B-4B09-8949-B5A88228C02B}

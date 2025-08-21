@@ -6,11 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { getRecentOrders } from '@/data'
 
 export default async function Home() {
-  let orders = await getRecentOrders()
 
   return (
     <>
-      <Heading>Good afternoon, Erica</Heading>      
+      <Heading>Courses</Heading>
+     
     </>
   )
 }

@@ -8,4 +8,9 @@
     <!-- Folder where production build objects will be placed -->
     <BuildOutputFolder>$(MSBuildProjectDirectory)\dist</BuildOutputFolder>
   </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="src\app\%28app%29\[tenant]\courses\[courseId]\enrollments\" />
+    <Folder Include="src\app\%28app%29\[tenant]\courses\[courseId]\assessments\" />
+    <Folder Include="src\app\%28app%29\[tenant]\courses\[courseId]\modules\[moduleId]\lessons\[lessonId]\assessments\[assessmentId]\" />
+  </ItemGroup>
 </Project>

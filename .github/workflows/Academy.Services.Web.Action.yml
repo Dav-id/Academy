@@ -1,0 +1,67 @@
+name: Academy Clients Web - Development
+on:
+  push:
+    # branches: [ "development" ]
+    tags:
+      - 'dev-[0-9].*.*'
+
+jobs:
+  build:
+    runs-on: [ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GH_PAT }}
+        submodules: true
+
+    - uses: actions/cache@v3
+      with:
+        path: ~/.nuget/packages
+        # Look to see if there is a cache hit for the corresponding requirements file
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget
+
+    - name: Install cosign
+      if: github.event_name != 'pull_request'
+      uses: sigstore/cosign-installer@6e04d228eb30da1757ee4e1dd75a0ec73a653e06 #v3.1.1
+      with:
+        cosign-release: 'v2.1.1'
+
+    - name: Log into registry ghcr.io
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ secrets.REPO_OWNER }}
+        password: ${{ secrets.GH_PAT }}
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and push Docker image
+      id: build-and-push
+      uses: docker/build-push-action@v5
+      with:
+        context: Source
+        file: Source/Clients/Academy.Clients.Web.Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ghcr.io/dav-id/academy.clients.web:development
+
+    - name: Discord Webhook Action
+      uses: nobrayner/discord-webhook@v1
+      with:
+          github-token: ${{ secrets.GH_PAT }}
+          discord-webhook: ${{ secrets.WEBHOOK_URL }}
+          username: 'Web-Automation'
+          avatar-url: 'https://octodex.github.com/images/Terracottocat_Single.png'
+          title: '${{ github.workflow }}: {{STATUS}}'
+          description: '${{ github.event_name }} trigged this {{STATUS}}!'
+          include-details: 'false'
+          color-success: '#4287f5'
+          color-failure: 'eb4034'
+          color-cancelled: '0x42daf5'

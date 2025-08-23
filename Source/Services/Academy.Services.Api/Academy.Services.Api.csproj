@@ -1,34 +1,43 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <UserSecretsId>5c4fe620-cb82-4dac-9a59-e242ae1e85a0</UserSecretsId>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<UserSecretsId>5c4fe620-cb82-4dac-9a59-e242ae1e85a0</UserSecretsId>
+		<Platforms>AnyCPU;ARM64;x64</Platforms>
+		<RootNamespace>Academy.Services.API</RootNamespace>
+		<AssemblyName>Academy.Services.API</AssemblyName>
+		
+		<DockerfileTag>academy.services.api</DockerfileTag>
+		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+		<DockerfileContext>..\..</DockerfileContext>
+		<DockerComposeProjectPath>..\..\docker-compose.dcproj</DockerComposeProjectPath>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\Aspire\Academy.ServiceDefaults\Academy.ServiceDefaults.csproj" />
-    <ProjectReference Include="..\..\Shared\Academy.Shared.Data\Academy.Shared.Data.csproj" />
-    <ProjectReference Include="..\..\Shared\Academy.Shared.Security.FusionAuth\ClassLibrary1\Academy.Shared.Security.FusionAuth.csproj" />
-    <ProjectReference Include="..\..\Shared\Academy.Shared.Security\Academy.Shared.Security\Academy.Shared.Security.csproj" />
-    <ProjectReference Include="..\..\Shared\Academy.Shared.Storage.S3\Academy.Shared.Storage.S3.csproj" />
-    <ProjectReference Include="..\..\Shared\Academy.Shared.Storage\Academy.Shared.Storage.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\..\Aspire\Academy.ServiceDefaults\Academy.ServiceDefaults.csproj" />
+		<ProjectReference Include="..\..\Shared\Academy.Shared.Data\Academy.Shared.Data.csproj" />
+		<ProjectReference Include="..\..\Shared\Academy.Shared.Security.FusionAuth\ClassLibrary1\Academy.Shared.Security.FusionAuth.csproj" />
+		<ProjectReference Include="..\..\Shared\Academy.Shared.Security\Academy.Shared.Security\Academy.Shared.Security.csproj" />
+		<ProjectReference Include="..\..\Shared\Academy.Shared.Storage.S3\Academy.Shared.Storage.S3.csproj" />
+		<ProjectReference Include="..\..\Shared\Academy.Shared.Storage\Academy.Shared.Storage.csproj" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.4.1" />
-    <PackageReference Include="Aspire.Npgsql" Version="9.4.1" />
-    <PackageReference Include="FluentValidation" Version="12.0.0" />
-    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.8" />
-    <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.13.1" />
-    <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="9.0.3" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="9.0.3" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="9.0.3" />
-    <PackageReference Include="VaultSharp" Version="1.17.5.1" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.4.1" />
+		<PackageReference Include="Aspire.Npgsql" Version="9.4.1" />
+		<PackageReference Include="FluentValidation" Version="12.0.0" />
+		<PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
+		<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.8" />
+		<PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.13.1" />
+		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
+		<PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="9.0.3" />
+		<PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="9.0.3" />
+		<PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="9.0.3" />
+		<PackageReference Include="VaultSharp" Version="1.17.5.1" />
+	</ItemGroup>
 
 </Project>

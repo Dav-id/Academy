@@ -75,15 +75,40 @@ builder.Services.AddHttpContextAccessor();
 builder.AddNpgsqlDbContext<ApplicationDbContext>("Academy");
 
 // Add Redis distributed cache
+string cacheConnectionString = builder.Configuration.GetConnectionString("cache") ?? redisConnectionString;
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = redisConnectionString;
+    options.Configuration = cacheConnectionString;
     options.InstanceName = "Academy:" + academyInstance + ":";
 });
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+});
+
+// Read allowed origins from configuration
+string[]? allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("ConfiguredCors", policy =>
+    {
+        if (allowedOrigins?.Length > 0 && allowedOrigins[0] != "*")
+        {
+            Console.WriteLine("Configuring CORS with specific origins: " + string.Join(", ", allowedOrigins));
+
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+        else
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+    });
 });
 
 // Add OpenID JWT Auth
@@ -341,6 +366,8 @@ using (IServiceScope serviceScope = app.Services.GetRequiredService<IServiceScop
     context?.Database.Migrate();
 }
 
+app.UseCors("ConfiguredCors");
+
 app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
@@ -373,6 +400,7 @@ app.UseRateLimiter();
 
 // Add localization middleware
 app.UseRequestLocalization();
+
 
 //-------------------------------------
 // Register our endpoints

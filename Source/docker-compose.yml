@@ -1,0 +1,11 @@
+services:
+  academy.services.api:
+    image: ${DOCKER_REGISTRY-}academy.services.api
+    build:
+      context: .
+      dockerfile: Services/Academy.Services.Api/Dockerfile
+  academy.clients.web:
+    image: ${DOCKER_REGISTRY-}academy.clients.web
+    build:
+      context: .
+      dockerfile: Clients/Academy.Clients.Web/Dockerfile

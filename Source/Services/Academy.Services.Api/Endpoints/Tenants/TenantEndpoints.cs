@@ -1,8 +1,11 @@
+using Academy.Services.Api.Extensions;
 using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+
+using System.Security.Claims;
 
 using static Academy.Services.Api.Endpoints.Tenants.TenantContracts;
 
@@ -22,7 +25,7 @@ namespace Academy.Services.Api.Endpoints.Tenants
         public static void AddEndpoints(this IEndpointRouteBuilder app)
         {
             app.MapGet("/api/v1/tenants", GetTenants)
-                .RequireAuthorization("Administrator");
+                .RequireAuthorization();
             Routes.Add("GET: /api/v1/tenants");
 
             app.MapGet("/api/v1/tenants/{tenant}", GetTenant)
@@ -53,12 +56,40 @@ namespace Academy.Services.Api.Endpoints.Tenants
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            List<TenantResponse> tenants = await db.Tenants
-                .Where(t => !t.IsDeleted)
-                .Select(t => new TenantResponse(t.Id, t.UrlStub, t.Title, t.Description))
-                .ToListAsync();
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "User is not authenticated.",
+                    null,
+                    httpContextAccessor.HttpContext?.TraceIdentifier
+                ));
+            }
 
-            return TypedResults.Ok(new ListTenantsResponse(tenants));
+            bool isAdmin = user.IsInRole("Administrator");
+            long? userId = user?.GetUserId();
+
+            IQueryable<Shared.Data.Models.Tenants.Tenant> query;
+
+            if (isAdmin)
+            {
+                query = db.Tenants.AsNoTracking();
+            }
+            else if (userId.HasValue)
+            {
+                query = db.Tenants.AsNoTracking().Where(c => c.Users.Any(e => e.Id == userId.Value));
+            }
+            else
+            {
+                // No user id, return empty
+                return TypedResults.Ok(new ListTenantsResponse([]));
+            }
+
+            List<TenantResponse> tenantResponses = (await query.ToListAsync()).ConvertAll(t => new TenantResponse(t.Id, t.UrlStub, t.Title, t.Description))
+;
+            return TypedResults.Ok(new ListTenantsResponse(tenantResponses));
         }
 
         /// <summary>
@@ -81,7 +112,7 @@ namespace Academy.Services.Api.Endpoints.Tenants
                     "Not Found",
                     $"Tenant with UrlStub {tenant} not found.",
                     null,
-                    null
+                    httpContextAccessor.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -96,18 +127,54 @@ namespace Academy.Services.Api.Endpoints.Tenants
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            Shared.Data.Models.Tenants.Tenant tenant = new Shared.Data.Models.Tenants.Tenant
+            // Check for duplicate UrlStub
+            bool exists = await db.Tenants.AnyAsync(t => t.UrlStub == request.UrlStub && !t.IsDeleted);
+            if (exists)
             {
-                UrlStub = request.UrlStub,
-                Title = request.Title,
-                Description = request.Description ?? string.Empty,
-                IsDeleted = false
-            };
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status409Conflict,
+                    "Conflict",
+                    $"A tenant with UrlStub '{request.UrlStub}' already exists.",
+                    null,
+                    httpContextAccessor.HttpContext?.TraceIdentifier
+                ));
+            }
 
-            db.Tenants.Add(tenant);
-            await db.SaveChangesAsync();
+            try
+            {
+                Shared.Data.Models.Tenants.Tenant tenant = new Shared.Data.Models.Tenants.Tenant
+                {
+                    UrlStub = request.UrlStub,
+                    Title = request.Title,
+                    Description = request.Description ?? string.Empty,
+                    IsDeleted = false
+                };
 
-            return TypedResults.Ok(new TenantResponse(tenant.Id, tenant.UrlStub, tenant.Title, tenant.Description));
+                db.Tenants.Add(tenant);
+                await db.SaveChangesAsync();
+
+                return TypedResults.Ok(new TenantResponse(tenant.Id, tenant.UrlStub, tenant.Title, tenant.Description));
+            }
+            catch (DbUpdateException dbEx)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status500InternalServerError,
+                    "Database Error",
+                    "An error occurred while saving the tenant.",
+                    dbEx.Message,
+                    httpContextAccessor.HttpContext?.TraceIdentifier
+                ));
+            }
+            catch (Exception ex)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status500InternalServerError,
+                    "Unexpected Error",
+                    "An unexpected error occurred.",
+                    ex.Message,
+                    httpContextAccessor.HttpContext?.TraceIdentifier
+                ));
+            }
         }
 
         /// <summary>
@@ -119,7 +186,6 @@ namespace Academy.Services.Api.Endpoints.Tenants
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-
             Shared.Data.Models.Tenants.Tenant? t = await db.Tenants.FirstOrDefaultAsync(t => t.UrlStub == tenant);
             if (t == null)
             {
@@ -128,7 +194,7 @@ namespace Academy.Services.Api.Endpoints.Tenants
                     "Not Found",
                     $"Tenant with UrlStub {tenant} not found.",
                     null,
-                    null
+                    httpContextAccessor.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -157,7 +223,7 @@ namespace Academy.Services.Api.Endpoints.Tenants
                     "Not Found",
                     $"Tenant with UrlStub {tenant} not found.",
                     null,
-                    null
+                    httpContextAccessor.HttpContext?.TraceIdentifier
                 ));
             }
 

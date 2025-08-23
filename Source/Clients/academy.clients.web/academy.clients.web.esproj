@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.2752196">
+﻿<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.2752196">
   <PropertyGroup>
     <StartupCommand>npm run dev</StartupCommand>
     <JavaScriptTestRoot>src\</JavaScriptTestRoot>
@@ -7,10 +7,12 @@
     <ShouldRunBuildScript>false</ShouldRunBuildScript>
     <!-- Folder where production build objects will be placed -->
     <BuildOutputFolder>$(MSBuildProjectDirectory)\dist</BuildOutputFolder>
+    <DockerfileTag>academy.clients.web</DockerfileTag>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>..\..</DockerfileContext>
+    <DockerComposeProjectPath>..\..\docker-compose.dcproj</DockerComposeProjectPath>
   </PropertyGroup>
   <ItemGroup>
-    <Folder Include="src\app\%28app%29\[tenant]\courses\[courseId]\enrollments\" />
-    <Folder Include="src\app\%28app%29\[tenant]\courses\[courseId]\assessments\" />
-    <Folder Include="src\app\%28app%29\[tenant]\courses\[courseId]\modules\[moduleId]\lessons\[lessonId]\assessments\[assessmentId]\" />
+    <Folder Include="src\assets\" />
   </ItemGroup>
 </Project>

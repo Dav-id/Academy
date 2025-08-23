@@ -8,7 +8,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        console.log('AuthProvider mounted, checking user status...');
         userManager.getUser().then(user => {
             setUser(user);
             setLoading(false);
@@ -28,7 +27,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         };
     }, []);
 
-    const login = () => userManager.signinRedirect();
+    const login = (redirectPath?: string) => userManager.signinRedirect({
+        state: redirectPath || window.location.pathname + window.location.search
+    });
     const logout = () => userManager.signoutRedirect();
 
     return (

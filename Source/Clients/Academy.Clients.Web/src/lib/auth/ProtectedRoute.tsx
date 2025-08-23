@@ -14,8 +14,8 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         return <div>Loading authentication...</div>;
     }
 
-    if (!user) {
-        login();
+    if (!user && !loading) {
+        login(location.pathname + location.search);
         return null;
     }
 

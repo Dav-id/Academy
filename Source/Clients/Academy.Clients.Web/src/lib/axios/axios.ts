@@ -8,6 +8,20 @@ export async function getAccessToken(): Promise<string | null> {
     return user?.access_token ?? null;
 }
 
+async function ensureValidToken() {
+    let user = await userManager.getUser();
+    if (!user || user.expired) {
+        try {
+            user = await userManager.signinSilent();
+        } catch (err) {
+            // Silent refresh failed, fallback to interactive login if needed
+            console.error('Silent token refresh failed:', err);
+            await userManager.signinRedirect();
+        }
+    }
+    return user?.access_token ?? null;
+}
+
 const api = axios.create({
     baseURL: config.api.API_BASE_URL,
     timeout: 10000,
@@ -18,7 +32,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
     async (config: AxiosRequestConfig) => {
-        const token = await getAccessToken();
+        const token = await ensureValidToken();
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
         }

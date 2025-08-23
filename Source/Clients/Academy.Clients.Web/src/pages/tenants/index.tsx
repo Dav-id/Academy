@@ -2,21 +2,23 @@ import { useLoaderData } from 'react-router-dom';
 import { Heading, Subheading } from '../../components/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/table'
 import { getTenants } from '../../services/tenantService';
+import { useAuth } from '../../lib/auth/AuthContext';
 
 export async function loader() {
     const data = await getTenants();
-
-    //return json(await data.json());
 }
 
 export default function TenantListPage() {
-    const tenants = useLoaderData();
+    const data = useLoaderData();
 
-    console.log(tenants);
+    const { user } = useAuth(); // Use the hook inside the component
+
+    const profile = user?.profile;
+    const roles = profile?.roles || profile?.role || [];
 
     return (
         <>
-            <Heading>Tenants</Heading>
+            <Heading>Tenants {profile.email} : {roles}</Heading>
             
             <Table className="mt-4 [--gutter:--spacing(6)] lg:[--gutter:--spacing(10)]">
                 <TableHead>

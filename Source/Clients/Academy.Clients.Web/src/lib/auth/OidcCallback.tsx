@@ -7,7 +7,11 @@ export default function OidcCallback() {
 
     useEffect(() => {
         userManager.signinRedirectCallback()
-            .then(() => navigate('/'))
+            .then(user => {
+                // user.state contains the original URL
+                const redirectTo = user?.state || '/';
+                navigate(redirectTo, { replace: true });
+            })
             .catch(err => console.error('OIDC callback error:', err));
     }, [navigate]);
 

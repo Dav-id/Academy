@@ -41,13 +41,22 @@ import {
 } from '@heroicons/react/20/solid'
 
 import { Outlet, NavLink } from 'react-router-dom';
+import { useAuth } from '../lib/auth/AuthContext'; // Import your auth context
+import { userManager } from '../lib/auth/oidc';
 
 type LayoutProps = {
     children: ReactNode;
 };
 
-const RootLayout = () => (
+const RootLayout = () => {
+    const { user, logout } = useAuth(); // Use the hook inside the component
 
+    // The profile is typically under user.profile
+    const profile = user?.profile;
+    const name = profile?.name || profile?.preferred_username || profile?.email || 'User';
+    const email = profile?.email;
+
+    return (
      <SidebarLayout
             navbar={
                 <Navbar>
@@ -134,9 +143,9 @@ const RootLayout = () => (
                                 <span className="flex min-w-0 items-center gap-3">
                                     <Avatar src="/users/erica.jpg" className="size-10" square alt="" />
                                     <span className="min-w-0">
-                                        <span className="text-sm/5 block truncate font-medium text-zinc-950 dark:text-white">Erica</span>
+                                        <span className="text-sm/5 block truncate font-medium text-zinc-950 dark:text-white">{name}</span>
                                         <span className="text-xs/5 block truncate font-normal text-zinc-500 dark:text-zinc-400">
-                                            erica@example.com
+                                            {email}
                                         </span>
                                     </span>
                                 </span>
@@ -150,12 +159,14 @@ const RootLayout = () => (
         >
         <Outlet />
         </SidebarLayout>
-);
-
+    );
+};
 export default RootLayout;
 
 
 function AccountDropdownMenu({ anchor }: { anchor: 'top start' | 'bottom end' }) {
+    const logout = () => userManager.signoutRedirect();
+
     return (
         <DropdownMenu className="min-w-64" anchor={anchor}>
             <DropdownItem href="#">
@@ -172,7 +183,7 @@ function AccountDropdownMenu({ anchor }: { anchor: 'top start' | 'bottom end' })
                 <DropdownLabel>Share feedback</DropdownLabel>
             </DropdownItem>
             <DropdownDivider />
-            <DropdownItem href="/login">
+            <DropdownItem onClick={logout}>
                 <ArrowRightStartOnRectangleIcon />
                 <DropdownLabel>Sign out</DropdownLabel>
             </DropdownItem>

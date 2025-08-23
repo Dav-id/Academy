@@ -165,7 +165,7 @@ export default RootLayout;
 
 
 function AccountDropdownMenu({ anchor }: { anchor: 'top start' | 'bottom end' }) {
-    const logout = () => userManager.signoutRedirect();
+    const { logout } = useAuth(); // Use the hook inside the component
 
     return (
         <DropdownMenu className="min-w-64" anchor={anchor}>

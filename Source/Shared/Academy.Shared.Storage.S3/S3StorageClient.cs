@@ -72,7 +72,7 @@ namespace Academy.Shared.Storage.S3
 
             try
             {
-                var resp = await _client.PutObjectAsync(putArgs);
+                Minio.DataModel.Response.PutObjectResponse resp = await _client.PutObjectAsync(putArgs);
                 if (resp != null)
                 {
                     if(resp.ResponseStatusCode == System.Net.HttpStatusCode.OK)

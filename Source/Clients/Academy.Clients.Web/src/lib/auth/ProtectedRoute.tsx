@@ -1,23 +1,35 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { useParams } from 'react-router-dom';
 
-export default function ProtectedRoute({ children }: { children: JSX.Element }) {
-    const { user, login, loading} = useAuth();
-    const location = useLocation();
+type ProtectedRouteProps = {
+    children: React.ReactNode;
+    requiredRoles?: string[];
+};
 
-    if (loading) {
-        return <div>Loading authentication...</div>;
-    }
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRoles }) => {
+    const { user, roles, loading, login } = useAuth();
+    const params = useParams();
 
-    if (user === undefined) {
-        return <div>Loading authentication...</div>;
-    }
+    // Example: replace :tenantUrlStub in requiredRoles with actual value
+    const effectiveRoles = requiredRoles?.map(role =>
+        role.replace(':tenantUrlStub', params.tenantUrlStub || '')
+    );
 
+    if (loading) return <div>Loading...</div>;
     if (!user && !loading) {
         login(location.pathname + location.search);
         return null;
     }
 
-    return children;
-}
+    if (effectiveRoles && effectiveRoles.length > 0) {
+        const hasRole = roles.some(role => effectiveRoles.includes(role));
+        if (!hasRole) {
+            return <div className="text-white">Access denied: insufficient permissions.</div>;
+        }
+    }
+
+    return <>{children}</>;
+};
+
+export default ProtectedRoute;

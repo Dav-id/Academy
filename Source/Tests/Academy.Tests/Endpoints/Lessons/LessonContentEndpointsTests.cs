@@ -134,7 +134,7 @@ namespace Academy.Tests.Endpoints.Lessons
 
             public FakeHttpContextAccessor(string? userName, bool isInstructor = false)
             {
-                List<System.Security.Claims.Claim> claims = new();
+                List<System.Security.Claims.Claim> claims = [];
                 if (!string.IsNullOrEmpty(userName))
                 {
                     claims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, userName));

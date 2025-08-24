@@ -71,7 +71,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 ));
             }
 
-            Shared.Data.Models.Lessons.LessonPrerequisiteAssessment prerequisite = new Shared.Data.Models.Lessons.LessonPrerequisiteAssessment
+            Shared.Data.Models.Lessons.LessonPrerequisiteAssessment prerequisite = new()
             {
                 LessonId = lessonId,
                 PrerequisiteAssessmentId = request.PrerequisiteAssessmentId

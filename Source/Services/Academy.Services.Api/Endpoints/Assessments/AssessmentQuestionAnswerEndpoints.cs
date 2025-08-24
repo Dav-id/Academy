@@ -172,7 +172,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            Shared.Data.Models.Assessments.AssessmentQuestionAnswer answer = new Shared.Data.Models.Assessments.AssessmentQuestionAnswer
+            Shared.Data.Models.Assessments.AssessmentQuestionAnswer answer = new()
             {
                 AssessmentId = assessmentId,
                 AssessmentQuestionId = questionId,
@@ -189,7 +189,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             db.AssessmentQuestionAnswers.Add(answer);
             await db.SaveChangesAsync();
 
-            AssessmentQuestionAnswerResponse response = new AssessmentQuestionAnswerResponse(
+            AssessmentQuestionAnswerResponse response = new(
                 answer.Id,
                 answer.AssessmentId,
                 answer.AssessmentQuestionId,
@@ -255,7 +255,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
 
             await db.SaveChangesAsync();
 
-            AssessmentQuestionAnswerResponse response = new AssessmentQuestionAnswerResponse(
+            AssessmentQuestionAnswerResponse response = new(
                 answer.Id,
                 answer.AssessmentId,
                 answer.AssessmentQuestionId,

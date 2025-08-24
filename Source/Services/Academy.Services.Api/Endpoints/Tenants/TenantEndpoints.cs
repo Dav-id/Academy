@@ -1,6 +1,8 @@
 using Academy.Services.Api.Extensions;
 using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
+using Academy.Shared.Data.Models.Accounts;
+using Academy.Shared.Security;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
@@ -125,7 +127,8 @@ namespace Academy.Services.Api.Endpoints.Tenants
         public static async Task<Results<Ok<TenantResponse>, BadRequest<ErrorResponse>>> CreateTenant(
             CreateTenantRequest request,
             ApplicationDbContext db,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            IAuthClient authClient)
         {
             // Check for duplicate UrlStub
             bool exists = await db.Tenants.AnyAsync(t => t.UrlStub == request.UrlStub && !t.IsDeleted);
@@ -142,12 +145,47 @@ namespace Academy.Services.Api.Endpoints.Tenants
 
             try
             {
-                Shared.Data.Models.Tenants.Tenant tenant = new Shared.Data.Models.Tenants.Tenant
+                // 1. Create user via IAuthClient
+                Shared.Security.Models.UserProfile? userProfile = await authClient.CreateUserAsync(
+                    firstName: request.TenantAccountOwnerFirstName,
+                    lastName: request.TenantAccountOwnerLastName,
+                    email: request.TenantAccountOwnerEmail                    
+                );
+
+                if (userProfile == null)
+                {
+                    return TypedResults.BadRequest(new ErrorResponse(
+                        StatusCodes.Status400BadRequest,
+                        "User Creation Failed",
+                        "Failed to create the tenant account owner user.",
+                        null,
+                        httpContextAccessor.HttpContext?.TraceIdentifier
+                    ));
+                }
+
+                // Create the roles for the tenant
+                await authClient.CreateRoleAsync($"{request.UrlStub}:Administrator");
+                await authClient.CreateRoleAsync($"{request.UrlStub}:Instructor");
+                await authClient.CreateRoleAsync($"{request.UrlStub}:Student");
+
+                // Assign the user to the "Administrator" role
+                await authClient.AddUserToRoleAsync(userProfile.Id, $"{request.UrlStub}:Administrator");
+
+                // 2. Create the tenant and associate the user profile
+                Shared.Data.Models.Tenants.Tenant tenant = new()
                 {
                     UrlStub = request.UrlStub,
                     Title = request.Title,
                     Description = request.Description ?? string.Empty,
-                    IsDeleted = false
+                    IsDeleted = false,
+                    Users = [ new (){
+                        FirstName = request.TenantAccountOwnerFirstName,
+                        LastName = request.TenantAccountOwnerLastName,
+                        Email = request.TenantAccountOwnerEmail,
+                        IdentityProvider = authClient.ProviderName,
+                        IdentityProviderId = userProfile.Id,
+                        CreatedBy = httpContextAccessor.HttpContext?.User?.GetUserIdString() ?? "Unknown",
+                    }]
                 };
 
                 db.Tenants.Add(tenant);

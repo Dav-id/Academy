@@ -192,8 +192,8 @@ namespace Academy.Tests.Endpoints.Courses
             public FakeHttpContextAccessor(long? userId, bool isInstructor = false)
             {
                 List<System.Security.Claims.Claim> claims = userId.HasValue
-                    ? new List<System.Security.Claims.Claim> { new(ClaimTypes.NameIdentifier, userId.Value.ToString()) }
-                    : new();
+                    ? [new(ClaimTypes.NameIdentifier, userId.Value.ToString())]
+                    : [];
 
                 if (isInstructor)
                 {

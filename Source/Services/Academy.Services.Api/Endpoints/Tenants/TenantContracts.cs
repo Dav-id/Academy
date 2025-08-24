@@ -13,7 +13,10 @@ namespace Academy.Services.Api.Endpoints.Tenants
         public record CreateTenantRequest(
             string UrlStub,
             string Title,
-            string? Description
+            string? Description,
+            string TenantAccountOwnerFirstName,
+            string TenantAccountOwnerLastName,
+            string TenantAccountOwnerEmail
         );
 
         /// <summary>
@@ -52,6 +55,10 @@ namespace Academy.Services.Api.Endpoints.Tenants
             RuleFor(x => x.UrlStub).NotEmpty().MaximumLength(20);
             RuleFor(x => x.Title).NotEmpty().MaximumLength(200);
             RuleFor(x => x.Description).MaximumLength(1000);
+
+            RuleFor(x => x.TenantAccountOwnerFirstName).NotEmpty().MaximumLength(200);
+            RuleFor(x => x.TenantAccountOwnerLastName).NotEmpty().MaximumLength(200);
+            RuleFor(x => x.TenantAccountOwnerEmail).NotEmpty().EmailAddress();
         }
     }
 

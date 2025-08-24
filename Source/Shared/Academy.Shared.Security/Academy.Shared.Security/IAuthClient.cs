@@ -7,6 +7,8 @@ namespace Academy.Shared.Security
     {
         string ProviderName { get; }
 
+        Task CreateRoleAsync(string role);
+        Task AddUserToRoleAsync(string id, string role);
         Task<UserProfile?> CreateUserAsync(string firstName, string lastName, string email);
         Task<UserProfile?> GetUserByEmailAsync(string email);
     }

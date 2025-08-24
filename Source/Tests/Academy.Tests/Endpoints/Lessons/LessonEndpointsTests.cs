@@ -153,7 +153,7 @@ namespace Academy.Tests.Endpoints.Lessons
 
             public FakeHttpContextAccessor(long? userId, bool isInstructor = false)
             {
-                List<System.Security.Claims.Claim> claims = new();
+                List<System.Security.Claims.Claim> claims = [];
                 if (userId.HasValue)
                 {
                     claims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, userId.Value.ToString()));

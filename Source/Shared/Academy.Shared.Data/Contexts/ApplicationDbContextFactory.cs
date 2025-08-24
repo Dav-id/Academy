@@ -7,7 +7,7 @@ namespace Academy.Shared.Data.Contexts
     {
         public ApplicationDbContext CreateDbContext(string[] args)
         {
-            var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+            DbContextOptionsBuilder<ApplicationDbContext> optionsBuilder = new();
             optionsBuilder.UseNpgsql("###", options =>
             {
                 options.MigrationsAssembly("Academy.Shared.Data");

@@ -23,8 +23,20 @@ namespace Academy.Services.Api.Extensions
         {
             Claim? idClaim = user.FindFirst("Id") ?? user.FindFirst(ClaimTypes.NameIdentifier);
             if (idClaim != null && long.TryParse(idClaim.Value, out long id))
+            {
                 return id;
+            }
             return null;
+        }
+
+        public static string GetUserIdString(this ClaimsPrincipal user)
+        {
+            Claim? idClaim = user.FindFirst("Id") ?? user.FindFirst(ClaimTypes.NameIdentifier);
+            if (idClaim != null && long.TryParse(idClaim.Value, out long id))
+            {
+                return id.ToString();
+            }
+            return "Unknown";
         }
 
         public static long GetUserId(this ClaimsIdentity user)

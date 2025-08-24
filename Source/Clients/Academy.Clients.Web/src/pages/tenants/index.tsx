@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { getTenants, TenantResponse } from '../../services/tenantService';
+import { getTenants, TenantResponse } from '../../services/tenants/tenantService';
 
 import { Heading, Subheading } from '../../components/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/table'
+import { Button } from '../../components/button';
 
 import { useAuth } from '../../lib/auth/AuthContext';
 
@@ -16,7 +17,7 @@ export default function TenantListPage() {
 
     const { data, isLoading, isError } = useQuery({
         queryKey: ['tenants'],
-        queryFn: getTenants        
+        queryFn: getTenants
     });
 
     if (isLoading) {
@@ -28,15 +29,16 @@ export default function TenantListPage() {
     }
     const tenants = data?.tenants ?? [];
 
-
-
-   
-
     return (
         <>
-            <Heading>Tenants</Heading>
-
-            <Subheading>List of tenants in the system. You are logged in as: {roles.join(", ")}</Subheading>
+            <div className="flex w-full flex-wrap items-end justify-between gap-4">
+                <Heading>Tenants</Heading>
+                <div className="flex gap-4">
+                    {roles.includes('Administrator') ? (
+                        <Button href="/tenants/create">New Tenant</Button>
+                    ) : null}
+                </div>
+            </div>            
 
             <Table className="mt-4 [--gutter:--spacing(6)] lg:[--gutter:--spacing(10)]">
                 <TableHead>

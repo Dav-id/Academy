@@ -4,11 +4,19 @@ using io.fusionauth.domain;
 
 using Microsoft.Extensions.Logging;
 
+using System.Data;
 using System.Security.Cryptography;
 
 namespace Academy.Shared.Security.FusionAuth
 {
-    public class FusionAuthClient(ILogger<FusionAuthClient> logger, string apiUrl, string apiKey, string tenantId, string audience, string issuer, ICollection<IdentityProviderRoleMapping> externalRoleMappings) : IAuthClient
+    public class FusionAuthClient(
+        ILogger<FusionAuthClient> logger,
+        string apiUrl,
+        string apiKey,
+        string tenantId,
+        string audience,
+        string issuer,
+        ICollection<IdentityProviderRoleMapping> externalRoleMappings) : IAuthClient
     {
 
         private readonly ILogger<FusionAuthClient> _logger = logger;
@@ -38,7 +46,7 @@ namespace Academy.Shared.Security.FusionAuth
                 return existingUser;
             }
 
-            io.fusionauth.FusionAuthClient authClient = new io.fusionauth.FusionAuthClient(_apiKey, _apiUrl, _tenantId);
+            io.fusionauth.FusionAuthClient authClient = new(_apiKey, _apiUrl, _tenantId);
 
             io.fusionauth.ClientResponse<io.fusionauth.domain.api.UserResponse> cu = await authClient.CreateUserAsync(null, new io.fusionauth.domain.api.UserRequest
             {
@@ -89,15 +97,15 @@ namespace Academy.Shared.Security.FusionAuth
                 List<string> roles = [];
                 if (u.registrations.Count > 0 && Guid.TryParse(_audience, out Guid audience))
                 {
-                    var registration = u.registrations.FirstOrDefault(x => x.applicationId == audience);
+                    UserRegistration? registration = u.registrations.FirstOrDefault(x => x.applicationId == audience);
                     if (registration != null)
                     {
                         // Retrieve roles from the registration and map to our application's roles
                         if (registration.roles.Count > 0)
                         {
-                            foreach (var r in registration.roles)
+                            foreach (string? r in registration.roles)
                             {
-                                var role = _identityProviderRoleMappings.FirstOrDefault(x => x.Issuer == _issuer && x.ExternalClaimValue == r);
+                                IdentityProviderRoleMapping? role = _identityProviderRoleMappings.FirstOrDefault(x => x.Issuer == _issuer && x.ExternalClaimValue == r);
                                 if (role != null)
                                 {
                                     roles.Add(role.AppRole);
@@ -129,6 +137,129 @@ namespace Academy.Shared.Security.FusionAuth
             }
 
             return null;
+        }
+
+        public async Task CreateRoleAsync(string role)
+        {
+            try
+            {
+                io.fusionauth.FusionAuthClient authClient = new(_apiKey, _apiUrl, _tenantId);
+
+                // Retrieve the application to add the role to
+                io.fusionauth.ClientResponse<io.fusionauth.domain.api.ApplicationResponse> appResponse = await authClient.RetrieveApplicationAsync(Guid.Parse(_audience));
+                if (!appResponse.WasSuccessful())
+                {
+                    _logger.LogError("Failed to retrieve application for role creation. Status: {Status}", appResponse.statusCode);
+                    throw new Exception("Application not found for role creation.");
+                }
+
+                Application application = appResponse.successResponse.application;
+                if (application.roles.Any(r => r.name == role))
+                {
+                    // Role already exists, nothing to do
+                    return;
+                }
+
+                // Add the new role
+                //application.roles.Add(new io.fusionauth.domain.ApplicationRole
+                //{
+                //    name = role,
+                //    isDefault = false,
+                //    isSuperRole = false
+                //});
+
+                //Dictionary<string, object> patch = new()
+                //{
+                //    { "roles",  }
+                //};
+
+                var updateResponse = await authClient.CreateApplicationRoleAsync(application.id, null, new()
+                {
+                    //application = application,
+                    role = new()
+                    {
+                        name = role,
+                        isDefault = false,
+                        isSuperRole = false
+                    }
+                });
+
+                //io.fusionauth.ClientResponse<io.fusionauth.domain.api.ApplicationResponse> updateResponse = await authClient.PatchApplicationAsync(application.id, patch);
+
+                if (!updateResponse.WasSuccessful())
+                {
+                    _logger.LogError("Failed to create role '{Role}'. Status: {Status}", role, updateResponse.statusCode);
+                    throw new Exception($"Failed to create role '{role}'.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception occurred while creating role '{Role}'", role);
+                throw;
+            }
+        }
+
+        public async Task AddUserToRoleAsync(string id, string role)
+        {
+            try
+            {
+                io.fusionauth.FusionAuthClient authClient = new(_apiKey, _apiUrl, _tenantId);
+
+                // Retrieve the user
+                io.fusionauth.ClientResponse<io.fusionauth.domain.api.UserResponse> userResponse = await authClient.RetrieveUserAsync(Guid.Parse(id));
+                if (!userResponse.WasSuccessful())
+                {
+                    _logger.LogError("Failed to retrieve user '{UserId}' for role assignment. Status: {Status}", id, userResponse.statusCode);
+                    throw new Exception("User not found for role assignment.");
+                }
+
+                User user = userResponse.successResponse.user;
+
+                // Retrieve the application registration
+                Guid appId = Guid.Parse(_audience);
+                UserRegistration? registration = user.registrations.FirstOrDefault(r => r.applicationId == appId);
+                if (registration == null)
+                {
+                    // Register the user to the application with the role
+                    io.fusionauth.domain.api.user.RegistrationRequest regRequest = new()
+                    {
+                        registration = new io.fusionauth.domain.UserRegistration
+                        {
+                            applicationId = appId,
+                            roles = [role]
+                        }
+                    };
+                    io.fusionauth.ClientResponse<io.fusionauth.domain.api.user.RegistrationResponse> regResponse = await authClient.RegisterAsync(user.id, regRequest);
+                    if (!regResponse.WasSuccessful())
+                    {
+                        _logger.LogError("Failed to register user '{UserId}' to application with role '{Role}'. Status: {Status}", id, role, regResponse.statusCode);
+                        throw new Exception($"Failed to register user '{id}' to application with role '{role}'.");
+                    }
+                }
+                else
+                {
+                    // Add the role if not already present
+                    if (!registration.roles.Contains(role))
+                    {
+                        registration.roles.Add(role);
+                        io.fusionauth.domain.api.user.RegistrationRequest regUpdateRequest = new()
+                        {
+                            registration = registration
+                        };
+                        io.fusionauth.ClientResponse<io.fusionauth.domain.api.user.RegistrationResponse> regUpdateResponse = await authClient.UpdateRegistrationAsync(user.id, regUpdateRequest);
+                        if (!regUpdateResponse.WasSuccessful())
+                        {
+                            _logger.LogError("Failed to add role '{Role}' to user '{UserId}'. Status: {Status}", role, id, regUpdateResponse.statusCode);
+                            throw new Exception($"Failed to add role '{role}' to user '{id}'.");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception occurred while adding user '{UserId}' to role '{Role}'", id, role);
+                throw;
+            }
         }
     }
 }

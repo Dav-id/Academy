@@ -1,6 +1,7 @@
 using Academy.Services.Api.Endpoints;
 using Academy.Services.Api.Endpoints.Tenants;
 using Academy.Shared.Data.Contexts;
+using Academy.Tests.Fakes;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -74,8 +75,9 @@ namespace Academy.Tests.Endpoints.Tenants
             Assert.AreEqual(StatusCodes.Status404NotFound, badRequest.Value?.StatusCode);
         }
 
+
         [TestMethod]
-        public async Task CreateTenant_AddsTenant()
+        public async Task CreateTenant_AddsTenant_AndCreatesUserAndRoles()
         {
             // Arrange
             DbContextOptions<ApplicationDbContext> options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -83,17 +85,30 @@ namespace Academy.Tests.Endpoints.Tenants
                 .Options;
             ApplicationDbContext db = new(options);
 
-            TenantContracts.CreateTenantRequest request = new("newstub", "New Tenant", "A new tenant");
+            TenantContracts.CreateTenantRequest request = new(
+                UrlStub: "newstub",
+                Title: "New Tenant",
+                Description: "A new tenant",
+                TenantAccountOwnerFirstName: "Alice",
+                TenantAccountOwnerLastName: "Smith",
+                TenantAccountOwnerEmail: "alice@example.com"
+            );
+
+            var fakeAuthClient = new FakeAuthClient();
+
+            FakeHttpContextAccessor httpContextAccessor = new(isAdministrator: true);
 
             // Act
-            FakeHttpContextAccessor httpContextAccessor = new(isAdministrator: true);
-            Results<Ok<TenantContracts.TenantResponse>, BadRequest<ErrorResponse>> result = await TenantEndpoints.CreateTenant(request, db, httpContextAccessor);
+            var result = await TenantEndpoints.CreateTenant(request, db, httpContextAccessor, fakeAuthClient);
 
             // Assert
             Ok<TenantContracts.TenantResponse>? okResult = result.Result as Ok<TenantContracts.TenantResponse>;
             Assert.IsNotNull(okResult);
             Assert.AreEqual("newstub", okResult.Value?.UrlStub);
             Assert.AreEqual(1, db.Tenants.Count());
+            Assert.HasCount(1, fakeAuthClient.CreatedUsers);
+            Assert.HasCount(3, fakeAuthClient.CreatedRoles);
+            Assert.HasCount(1, fakeAuthClient.UserRoleAssignments);
         }
 
         [TestMethod]

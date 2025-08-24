@@ -38,7 +38,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const extractRoles = (user: any) => {
     if (user && user.access_token) {
       const payload = parseJwt(user.access_token);
-      // Adjust claim name as needed: 'role', 'roles', or custom
       const roleClaim = payload?.role || payload?.roles || [];
       return Array.isArray(roleClaim) ? roleClaim : [roleClaim];
     }

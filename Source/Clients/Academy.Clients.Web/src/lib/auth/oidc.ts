@@ -2,7 +2,7 @@ import { UserManager, WebStorageStateStore } from 'oidc-client-ts';
 const config = window.appConfig;
 
 const oidcConfig = {
-    authority: config.auth.ISSUER, // e.g., https://login.microsoftonline.com/{tenant}/v2.0
+    authority: config.auth.ISSUER,
     client_id: config.auth.CLIENT_ID,    
     metadataUrl: config.auth.DISCOVERY_ENDPOINT,
     redirect_uri: window.location.origin + '/callback',

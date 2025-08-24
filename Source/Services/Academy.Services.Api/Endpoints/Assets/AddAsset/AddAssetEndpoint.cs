@@ -9,7 +9,6 @@ using Microsoft.IdentityModel.Tokens;
 
 using static Academy.Services.Api.Endpoints.Assets.AddAsset.AddAssetContracts;
 
-
 namespace Academy.Services.Api.Endpoints.Assets.AddAsset
 {
     public static class AddAssetEndpoint
@@ -20,21 +19,18 @@ namespace Academy.Services.Api.Endpoints.Assets.AddAsset
         {
             const string path = "api/v1/assets";
 
-            app.MapPut(path, async ([FromForm]AddAssetRequest request, IServiceProvider services) =>
-            {
-                return await AddAsset(request, services);
-            })
+            app.MapPut(path, AddAsset)
             .Accepts<AddAssetRequest>("multipart/form-data")
             .Validate<RouteHandlerBuilder, AddAssetRequest>()
             .DisableAntiforgery()
             .ProducesValidationProblem()
-            .RequireAuthorization("Instructor");
+            .RequireAuthorization(); // changed from .RequireAuthorization("Instructor")
 
             // Log mapped routes
             Routes.Add($"PUT: {path}");
         }
 
-        private static async Task<Results<Ok<AddAssetResponse>, BadRequest<ErrorResponse>>> AddAsset(AddAssetRequest request, IServiceProvider services)
+        private static async Task<Results<Ok<AddAssetResponse>, BadRequest<ErrorResponse>>> AddAsset(string tenant, AddAssetRequest request, IServiceProvider services)
         {
             await using AsyncServiceScope scope = services.CreateAsyncScope();
 
@@ -43,8 +39,6 @@ namespace Academy.Services.Api.Endpoints.Assets.AddAsset
             ILogger logger = loggerFactory.CreateLogger(typeof(AddAssetEndpoint).FullName ?? nameof(AddAssetEndpoint));
             IHttpContextAccessor httpContextAccessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
             IStorageClient storageClient = scope.ServiceProvider.GetRequiredService<IStorageClient>();
-
-            //logger.LogInformation("GetProfile called with Id: {Id}", id);
 
             // Check if the user is authenticated - should be, otherwise this endpoint should not be accessible
             if (httpContextAccessor.HttpContext?.User?.Identity is not CaseSensitiveClaimsIdentity cp)
@@ -61,10 +55,10 @@ namespace Academy.Services.Api.Endpoints.Assets.AddAsset
                 );
             }
 
-            // Check if the user has the required roles or is the same user
-            if (!cp.IsInRole("Administrator") && !cp.IsInRole("Instructor"))
+            // Check if the user has the required roles (tenant-scoped)
+            if (!cp.IsInRole($"{tenant}:Administrator") && !cp.IsInRole($"{tenant}:Instructor"))
             {
-                logger.LogError("GetProfile called by user without sufficient permissions. UserId: {UserId}", cp.GetUserId());
+                logger.LogError("AddAsset called by user without sufficient permissions. UserId: {UserId}", cp.GetUserId());
                 return TypedResults.BadRequest(
                     new ErrorResponse(
                         StatusCodes.Status403Forbidden,
@@ -90,7 +84,6 @@ namespace Academy.Services.Api.Endpoints.Assets.AddAsset
                 );
             }
 
-
             if (request.File.Length > 10 * 1024 * 1024) // 10 MB limit
             {
                 logger.LogError("AddAsset called with a file larger than 10 MB");
@@ -106,7 +99,7 @@ namespace Academy.Services.Api.Endpoints.Assets.AddAsset
             }
 
             // Validate the file type
-            string[] allowedFileTypes = new[] { "image/jpeg", "image/png", "application/pdf" };
+            string[] allowedFileTypes = ["image/jpeg", "image/png", "application/pdf"];
             if (!allowedFileTypes.Contains(request.File.ContentType))
             {
                 logger.LogError("AddAsset called with an unsupported file type: {ContentType}", request.File.ContentType);

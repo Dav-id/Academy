@@ -31,11 +31,12 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 .RequireAuthorization("Instructor");
             Routes.Add($"POST: /{{tenant}}/api/v1/lessons/{{lessonId}}/contents");
 
-            app.MapPut("/{tenant}/api/v1/lessons/{lessonId}/contents/{id}", UpdateLessonContent)
+            // Update uses POST as it expects the full entity in the body, not just the fields to update.
+            app.MapPost("/{tenant}/api/v1/lessons/{lessonId}/contents/{id}", UpdateLessonContent)
                 .Validate<RouteHandlerBuilder, UpdateLessonContentRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization("Instructor");
-            Routes.Add($"PUT: /{{tenant}}/api/v1/lessons/{{lessonId}}/contents/{{id}}");
+            Routes.Add($"POST: /{{tenant}}/api/v1/lessons/{{lessonId}}/contents/{{id}}");
 
             app.MapDelete("/{tenant}/api/v1/lessons/{lessonId}/contents/{id}", DeleteLessonContent)
                 .RequireAuthorization("Instructor");

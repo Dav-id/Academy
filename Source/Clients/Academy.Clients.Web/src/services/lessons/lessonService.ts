@@ -111,7 +111,7 @@ export const updateLesson = async (
     request: UpdateLessonRequest
 ): Promise<LessonResponse> => {
     try {
-        const response = await api.put<LessonResponse>(
+        const response = await api.post<LessonResponse>(
             `/${encodeURIComponent(tenant)}/api/v1/modules/${moduleId}/lessons/${id}`,
             request
         );

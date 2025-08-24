@@ -1,6 +1,7 @@
 using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
 
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
@@ -74,7 +75,8 @@ namespace Academy.Services.Api.Endpoints.Roles
         private static async Task<Results<Ok<ExternalRoleMappingResponse>, BadRequest<ErrorResponse>>> GetMapping(
             string tenant,
             long id,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor)
         {
             ExternalRoleMappingResponse? mapping = await db.ExternalRoleMappings
                 .Where(m => m.Id == id)
@@ -89,7 +91,7 @@ namespace Academy.Services.Api.Endpoints.Roles
                     "Not Found",
                     $"External role mapping with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -133,7 +135,8 @@ namespace Academy.Services.Api.Endpoints.Roles
         private static async Task<Results<Ok<ExternalRoleMappingResponse>, BadRequest<ErrorResponse>>> UpdateMapping(
             long id,
             UpdateExternalRoleMappingRequest request,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor)
         {
             if (id != request.Id)
             {
@@ -142,7 +145,7 @@ namespace Academy.Services.Api.Endpoints.Roles
                     "Invalid Request",
                     "Route id and request id do not match.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -154,7 +157,7 @@ namespace Academy.Services.Api.Endpoints.Roles
                     "Not Found",
                     $"External role mapping with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -190,7 +193,7 @@ namespace Academy.Services.Api.Endpoints.Roles
                     "Not Found",
                     $"External role mapping with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 

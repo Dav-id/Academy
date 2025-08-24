@@ -1,6 +1,7 @@
 using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
 
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,17 +33,17 @@ namespace Academy.Services.Api.Endpoints.Accounts
             app.MapPost("/{tenant}/api/v1/users", CreateUserProfile)
                 .Validate<RouteHandlerBuilder, CreateUserProfileRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization("Instructor");
+                .RequireAuthorization(); // was .RequireAuthorization("Instructor")
             Routes.Add($"POST: /{{tenant}}/api/v1/users");
 
-            app.MapPut("/{tenant}/api/v1/users/{id}", UpdateUserProfile)
+            app.MapPost("/{tenant}/api/v1/users/{id}", UpdateUserProfile)
                 .Validate<RouteHandlerBuilder, UpdateUserProfileRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization("Instructor");
-            Routes.Add($"PUT: /{{tenant}}/api/v1/users/{{id}}");
+                .RequireAuthorization();
+            Routes.Add($"POST: /{{tenant}}/api/v1/users/{{id}}");
 
             app.MapDelete("/{tenant}/api/v1/users/{id}", DeleteUserProfile)
-                .RequireAuthorization("Instructor");
+                .RequireAuthorization(); // was .RequireAuthorization("Instructor")
             Routes.Add($"DELETE: /{{tenant}}/api/v1/users/{{id}}");
         }
 
@@ -73,7 +74,8 @@ namespace Academy.Services.Api.Endpoints.Accounts
         private static async Task<Results<Ok<UserProfileResponse>, BadRequest<ErrorResponse>>> GetUserProfile(
             string tenant,
             long id,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor)
         {
             UserProfileResponse? user = await db.UserProfiles
                 .Where(u => u.Id == id)
@@ -87,7 +89,7 @@ namespace Academy.Services.Api.Endpoints.Accounts
                     "Not Found",
                     $"User with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -102,11 +104,25 @@ namespace Academy.Services.Api.Endpoints.Accounts
         /// <param name="httpContextAccessor">The HTTP context accessor.</param>
         /// <returns>The created user profile.</returns>
         private static async Task<Results<Ok<UserProfileResponse>, BadRequest<ErrorResponse>>> CreateUserProfile(
+            string tenant,
             CreateUserProfileRequest request,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            Shared.Data.Models.Accounts.UserProfile user = new()
+            var user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to create user profiles.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            Shared.Data.Models.Accounts.UserProfile userProfile = new()
             {
                 FirstName = request.FirstName,
                 LastName = request.LastName,
@@ -116,10 +132,10 @@ namespace Academy.Services.Api.Endpoints.Accounts
                 TenantId = db.TenantId
             };
 
-            db.UserProfiles.Add(user);
+            db.UserProfiles.Add(userProfile);
             await db.SaveChangesAsync();
 
-            return TypedResults.Ok(new UserProfileResponse(user.Id, user.FirstName, user.LastName, user.Email, !user.IsDeleted));
+            return TypedResults.Ok(new UserProfileResponse(userProfile.Id, userProfile.FirstName, userProfile.LastName, userProfile.Email, !userProfile.IsDeleted));
         }
 
         /// <summary>
@@ -131,11 +147,42 @@ namespace Academy.Services.Api.Endpoints.Accounts
         /// <param name="httpContextAccessor">The HTTP context accessor.</param>
         /// <returns>The updated user profile if found; otherwise, a 404 error.</returns>
         private static async Task<Results<Ok<UserProfileResponse>, BadRequest<ErrorResponse>>> UpdateUserProfile(
+            string tenant,
             long id,
             UpdateUserProfileRequest request,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
+            HttpContext? httpContext = httpContextAccessor.HttpContext;
+            System.Security.Claims.ClaimsPrincipal? user = httpContext?.User;
+
+            // Get current user ID (assuming it's stored as a claim named "Id")
+            string? userIdClaim = user?.FindFirst("Id")?.Value;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+
+            if (!long.TryParse(userIdClaim, out long currentUserId))
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "Could not determine current user.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            // Only allow if updating own profile or user is Instructor
+            if (currentUserId != id && !isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to update this user profile.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             if (id != request.Id)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
@@ -143,31 +190,31 @@ namespace Academy.Services.Api.Endpoints.Accounts
                     "Invalid Request",
                     "Route id and request id do not match.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
-            Shared.Data.Models.Accounts.UserProfile? user = await db.UserProfiles.FindAsync(id);
-            if (user == null)
+            Shared.Data.Models.Accounts.UserProfile? userProfile = await db.UserProfiles.FindAsync(id);
+            if (userProfile == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
                     $"User with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
-            user.FirstName = request.FirstName;
-            user.LastName = request.LastName;
-            user.Email = request.Email;
-            user.UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
-            user.UpdatedAt = DateTime.UtcNow;
+            userProfile.FirstName = request.FirstName;
+            userProfile.LastName = request.LastName;
+            userProfile.Email = request.Email;
+            userProfile.UpdatedBy = httpContext?.User?.Identity?.Name ?? "Unknown";
+            userProfile.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
 
-            return TypedResults.Ok(new UserProfileResponse(user.Id, user.FirstName, user.LastName, user.Email, !user.IsDeleted));
+            return TypedResults.Ok(new UserProfileResponse(userProfile.Id, userProfile.FirstName, userProfile.LastName, userProfile.Email, !userProfile.IsDeleted));
         }
 
         /// <summary>
@@ -178,25 +225,39 @@ namespace Academy.Services.Api.Endpoints.Accounts
         /// <param name="httpContextAccessor">The HTTP context accessor.</param>
         /// <returns>Ok if deleted; otherwise, a 404 error.</returns>
         private static async Task<Results<Ok, BadRequest<ErrorResponse>>> DeleteUserProfile(
+            string tenant,
             long id,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            Shared.Data.Models.Accounts.UserProfile? user = await db.UserProfiles.FindAsync(id);
-            if (user == null)
+            var user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to delete user profiles.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            Shared.Data.Models.Accounts.UserProfile? userProfile = await db.UserProfiles.FindAsync(id);
+            if (userProfile == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
                     $"User with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
-            user.IsDeleted = true;
-            user.UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
-            user.UpdatedAt = DateTime.UtcNow;
+            userProfile.IsDeleted = true;
+            userProfile.UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
+            userProfile.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
 

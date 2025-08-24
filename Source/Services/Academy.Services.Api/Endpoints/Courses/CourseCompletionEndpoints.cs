@@ -27,11 +27,11 @@ namespace Academy.Services.Api.Endpoints.Courses
             app.MapPost("/{tenant}/api/v1/courses/{courseId}/complete", SubmitCompletion)
                 .Validate<RouteHandlerBuilder, SubmitCompletionRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization("Instructor");
+                .RequireAuthorization();
             Routes.Add($"POST: /{{tenant}}/api/v1/courses/{{courseId}}/complete");
 
             app.MapGet("/{tenant}/api/v1/courses/{courseId}/completions", GetCourseCompletions)
-                .RequireAuthorization("Instructor");
+                .RequireAuthorization();
             Routes.Add($"GET: /{{tenant}}/api/v1/courses/{{courseId}}/completions");
         }
 
@@ -45,8 +45,19 @@ namespace Academy.Services.Api.Endpoints.Courses
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to submit course completions.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             long? userId = user?.GetUserId();
             if (userId is null)
             {
@@ -55,7 +66,7 @@ namespace Academy.Services.Api.Endpoints.Courses
                     "Unauthorized",
                     "User is not authenticated.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -68,10 +79,9 @@ namespace Academy.Services.Api.Endpoints.Courses
                     "User Profile Not Found",
                     "The specified user profile does not exist.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
-
 
             // Check if already completed
             Shared.Data.Models.Courses.CourseCompletion? existing = await db.CourseCompletions
@@ -111,8 +121,22 @@ namespace Academy.Services.Api.Endpoints.Courses
         public static async Task<Results<Ok<ListCompletionsResponse>, BadRequest<ErrorResponse>>> GetCourseCompletions(
             string tenant,
             long courseId,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to view course completions.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             List<CompletionResponse> completions = await db.CourseCompletions
                 .Where(c => c.CourseId == courseId)
                 .Select(c => new CompletionResponse(

@@ -57,7 +57,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             IHttpContextAccessor httpContextAccessor)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
-            bool isInstructor = user?.IsInRole("Instructor") ?? false;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
             long? userId = user?.GetUserId();
 
             IQueryable<Shared.Data.Models.Assessments.AssessmentQuestionAnswer> query = db.AssessmentQuestionAnswers
@@ -74,7 +74,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                         "Unauthorized",
                         "User is not authenticated.",
                         null,
-                        null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                     ));
                 }
                 query = query.Where(a => a.UserProfileId == userId.Value);
@@ -110,7 +110,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             IHttpContextAccessor httpContextAccessor)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
-            bool isInstructor = user?.IsInRole("Instructor") ?? false;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
             long? userId = user?.GetUserId();
 
             IQueryable<Shared.Data.Models.Assessments.AssessmentQuestionAnswer> query = db.AssessmentQuestionAnswers
@@ -127,7 +127,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                         "Unauthorized",
                         "User is not authenticated.",
                         null,
-                        null
+                        httpContextAccessor?.HttpContext?.TraceIdentifier
                     ));
                 }
                 query = query.Where(a => a.UserProfileId == userId.Value);
@@ -154,7 +154,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                     "Not Found",
                     $"Assessment question answer with Id {id} not found or not accessible.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -172,17 +172,21 @@ namespace Academy.Services.Api.Endpoints.Assessments
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            long? userId = user?.GetUserId();
+
             Shared.Data.Models.Assessments.AssessmentQuestionAnswer answer = new()
             {
                 AssessmentId = assessmentId,
                 AssessmentQuestionId = questionId,
+                UserProfileId = userId ?? 0,
                 SelectedOptions = [.. request.SelectedOptionIds.Select(optionId =>
                     new Shared.Data.Models.Assessments.AssessmentQuestionAnswerOption
                     {
                         AssessmentQuestionOptionId = optionId
                     })],
-                CreatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown",
-                UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown",
+                CreatedBy = user?.Identity?.Name ?? "Unknown",
+                UpdatedBy = user?.Identity?.Name ?? "Unknown",
                 TenantId = db.TenantId
             };
 
@@ -223,7 +227,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                     "Invalid Request",
                     "Route id and request id do not match.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -238,7 +242,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                     "Not Found",
                     $"Assessment question answer with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -249,8 +253,11 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 {
                     AssessmentQuestionOptionId = optionId
                 })];
+            
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            long? userId = user?.GetUserId();
 
-            answer.UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
+            answer.UpdatedBy = user?.Identity?.Name ?? "Unknown";
             answer.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
@@ -292,7 +299,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                     "Not Found",
                     $"Assessment question answer with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 

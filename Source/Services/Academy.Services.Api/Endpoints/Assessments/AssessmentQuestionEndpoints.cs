@@ -2,6 +2,7 @@ using Academy.Services.Api.Extensions;
 using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
 
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,17 +30,17 @@ namespace Academy.Services.Api.Endpoints.Assessments
             app.MapPost("/{tenant}/api/v1/assessments/{assessmentId}/questions", CreateAssessmentQuestion)
                 .Validate<RouteHandlerBuilder, CreateAssessmentQuestionRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization("Instructor");
+                .RequireAuthorization();
             Routes.Add($"POST: /{{tenant}}/api/v1/assessments/{{assessmentId}}/questions");
 
             app.MapPut("/{tenant}/api/v1/assessments/{assessmentId}/questions/{id}", UpdateAssessmentQuestion)
                 .Validate<RouteHandlerBuilder, UpdateAssessmentQuestionRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization("Instructor");
+                .RequireAuthorization(); 
             Routes.Add($"PUT: /{{tenant}}/api/v1/assessments/{{assessmentId}}/questions/{{id}}");
 
             app.MapDelete("/{tenant}/api/v1/assessments/{assessmentId}/questions/{id}", DeleteAssessmentQuestion)
-                .RequireAuthorization("Instructor");
+                .RequireAuthorization(); 
             Routes.Add($"DELETE: /{{tenant}}/api/v1/assessments/{{assessmentId}}/questions/{{id}}");
         }
 
@@ -75,7 +76,8 @@ namespace Academy.Services.Api.Endpoints.Assessments
             string tenant,
             long assessmentId,
             long id,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor)
         {
             AssessmentQuestionResponse? question = await db.AssessmentQuestions
                 .Where(q => q.AssessmentId == assessmentId && q.Id == id)
@@ -97,7 +99,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                     "Not Found",
                     $"Assessment question with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -114,6 +116,19 @@ namespace Academy.Services.Api.Endpoints.Assessments
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
+            var user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to create assessment questions.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             Shared.Data.Models.Assessments.AssessmentQuestion question = new()
             {
                 AssessmentId = assessmentId,
@@ -122,8 +137,8 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 Order = request.Order,
                 MinimumOptionChoiceSelections = request.MinimumOptionChoiceSelections,
                 MaximumOptionChoiceSelections = request.MaximumOptionChoiceSelections,
-                CreatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown",
-                UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown",
+                CreatedBy = user?.Identity?.Name ?? "Unknown",
+                UpdatedBy = user?.Identity?.Name ?? "Unknown",
                 TenantId = db.TenantId
             };
 
@@ -152,6 +167,19 @@ namespace Academy.Services.Api.Endpoints.Assessments
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
+            var user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to update assessment questions.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             if (id != request.Id || assessmentId != request.AssessmentId)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
@@ -159,7 +187,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                     "Invalid Request",
                     "Route id and request id do not match.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -171,7 +199,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                     "Not Found",
                     $"Assessment question with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -180,7 +208,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             question.Order = request.Order;
             question.MinimumOptionChoiceSelections = request.MinimumOptionChoiceSelections;
             question.MaximumOptionChoiceSelections = request.MaximumOptionChoiceSelections;
-            question.UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
+            question.UpdatedBy = user?.Identity?.Name ?? "Unknown";
             question.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
@@ -206,6 +234,19 @@ namespace Academy.Services.Api.Endpoints.Assessments
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
+            var user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to delete assessment questions.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             Shared.Data.Models.Assessments.AssessmentQuestion? question = await db.AssessmentQuestions.FirstOrDefaultAsync(q => q.Id == id && q.AssessmentId == assessmentId);
             if (question == null)
             {
@@ -214,12 +255,12 @@ namespace Academy.Services.Api.Endpoints.Assessments
                     "Not Found",
                     $"Assessment question with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
             question.IsDeleted = true;
-            question.UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
+            question.UpdatedBy = user?.Identity?.Name ?? "Unknown";
             question.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();

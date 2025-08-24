@@ -4,6 +4,8 @@ using Academy.Shared.Data.Contexts;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
+using System.Security.Claims;
+
 using static Academy.Services.Api.Endpoints.Lessons.LessonPrerequisiteLessonContracts;
 
 namespace Academy.Services.Api.Endpoints.Lessons
@@ -24,11 +26,11 @@ namespace Academy.Services.Api.Endpoints.Lessons
             app.MapPost("/{tenant}/api/v1/lessons/{lessonId}/prerequisites", CreateLessonPrerequisite)
                 .Validate<RouteHandlerBuilder, CreateLessonPrerequisiteLessonRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization("Instructor");
+                .RequireAuthorization();
             Routes.Add($"POST: /{{tenant}}/api/v1/lessons/{{lessonId}}/prerequisites");
 
-            app.MapDelete("/{tenant}/api/v1/lessons/{lessonId}/prerequisites/{prerequisiteLessonId}", DeleteLessonPrerequisite)                
-                .RequireAuthorization("Instructor");
+            app.MapDelete("/{tenant}/api/v1/lessons/{lessonId}/prerequisites/{prerequisiteLessonId}", DeleteLessonPrerequisite)
+                .RequireAuthorization();
             Routes.Add($"DELETE: /{{tenant}}/api/v1/lessons/{{lessonId}}/prerequisites/{{prerequisiteLessonId}}");
         }
 
@@ -55,8 +57,22 @@ namespace Academy.Services.Api.Endpoints.Lessons
             string tenant,
             long lessonId,
             CreateLessonPrerequisiteLessonRequest request,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to create lesson prerequisites.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             // Prevent duplicate prerequisites
             bool exists = await db.LessonPrerequisiteLessons
                 .AnyAsync(p => p.LessonId == lessonId && p.PrerequisiteLessonId == request.PrerequisiteLessonId);
@@ -67,7 +83,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
                     "Conflict",
                     "This prerequisite already exists for the lesson.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -90,8 +106,22 @@ namespace Academy.Services.Api.Endpoints.Lessons
             string tenant,
             long lessonId,
             long prerequisiteLessonId,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to delete lesson prerequisites.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             Shared.Data.Models.Lessons.LessonPrerequisiteLesson? prerequisite = await db.LessonPrerequisiteLessons
                 .FirstOrDefaultAsync(p => p.PrerequisiteLessonId == prerequisiteLessonId && p.LessonId == lessonId);
             if (prerequisite == null)
@@ -101,7 +131,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
                     "Not Found",
                     $"Prerequisite lesson with Id {prerequisiteLessonId} not found for lesson {lessonId}.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 

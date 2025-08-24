@@ -38,11 +38,11 @@ namespace Academy.Services.Api.Endpoints.Courses
                 .RequireAuthorization("Instructor");
             Routes.Add($"POST: /{{tenant}}/api/v1/courses/{{courseId}}/modules");
 
-            app.MapPut("/{tenant}/api/v1/courses/{courseId}/modules/{id}", UpdateModule)
+            app.MapPost("/{tenant}/api/v1/courses/{courseId}/modules/{id}", UpdateModule)
                 .Validate<RouteHandlerBuilder, UpdateModuleRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization("Instructor");
-            Routes.Add($"PUT: /{{tenant}}/api/v1/courses/{{courseId}}/modules/{{id}}");
+            Routes.Add($"POST: /{{tenant}}/api/v1/courses/{{courseId}}/modules/{{id}}");
 
 
             app.MapDelete("/{tenant}/api/v1/courses/{courseId}/modules/{id}", DeleteModule)

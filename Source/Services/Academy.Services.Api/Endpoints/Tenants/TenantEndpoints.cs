@@ -40,11 +40,11 @@ namespace Academy.Services.Api.Endpoints.Tenants
                 .RequireAuthorization("Administrator");
             Routes.Add("POST: /api/v1/tenants");
 
-            app.MapPut("/api/v1/tenants/{tenant}", UpdateTenant)
+            app.MapPost("/api/v1/tenants/{tenant}", UpdateTenant)
                 .Validate<RouteHandlerBuilder, UpdateTenantRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization("Administrator");
-            Routes.Add("PUT: /api/v1/tenants/{tenant}");
+            Routes.Add("POST: /api/v1/tenants/{tenant}");
 
             app.MapDelete("/api/v1/tenants/{tenant}", DeleteTenant)
                 .RequireAuthorization("Administrator");

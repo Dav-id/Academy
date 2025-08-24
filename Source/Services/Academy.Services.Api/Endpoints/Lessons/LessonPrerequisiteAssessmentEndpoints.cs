@@ -4,6 +4,8 @@ using Academy.Shared.Data.Contexts;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
+using System.Security.Claims;
+
 using static Academy.Services.Api.Endpoints.Lessons.LessonPrerequisiteAssessmentContracts;
 
 namespace Academy.Services.Api.Endpoints.Lessons
@@ -16,7 +18,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         public static readonly List<string> Routes = [];
 
         public static void AddEndpoints(this IEndpointRouteBuilder app)
-        {            
+        {
             app.MapGet("/{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments", GetLessonPrerequisiteAssessments)
                 .RequireAuthorization();
             Routes.Add($"GET: /{{tenant}}/api/v1/lessons/{{lessonId}}/prerequisite-assessments");
@@ -24,11 +26,11 @@ namespace Academy.Services.Api.Endpoints.Lessons
             app.MapPost("/{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments", CreateLessonPrerequisiteAssessment)
                 .Validate<RouteHandlerBuilder, CreateLessonPrerequisiteAssessmentRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization("Instructor");
+                .RequireAuthorization();
             Routes.Add($"POST: /{{tenant}}/api/v1/lessons/{{lessonId}}/prerequisite-assessments");
 
-            app.MapDelete("/{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments/{prerequisiteAssessmentId}", DeleteLessonPrerequisiteAssessment)                
-                .RequireAuthorization("Instructor");
+            app.MapDelete("/{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments/{prerequisiteAssessmentId}", DeleteLessonPrerequisiteAssessment)
+                .RequireAuthorization();
             Routes.Add($"DELETE: /{{tenant}}/api/v1/lessons/{{lessonId}}/prerequisite-assessments/{{prerequisiteAssessmentId}}");
         }
 
@@ -55,8 +57,22 @@ namespace Academy.Services.Api.Endpoints.Lessons
             string tenant,
             long lessonId,
             CreateLessonPrerequisiteAssessmentRequest request,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to create lesson prerequisite assessments.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             // Prevent duplicate prerequisites
             bool exists = await db.LessonPrerequisiteAssessments
                 .AnyAsync(p => p.LessonId == lessonId && p.PrerequisiteAssessmentId == request.PrerequisiteAssessmentId);
@@ -67,7 +83,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
                     "Conflict",
                     "This prerequisite assessment already exists for the lesson.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -90,8 +106,22 @@ namespace Academy.Services.Api.Endpoints.Lessons
             string tenant,
             long lessonId,
             long prerequisiteAssessmentId,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to delete lesson prerequisite assessments.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             Shared.Data.Models.Lessons.LessonPrerequisiteAssessment? prerequisite = await db.LessonPrerequisiteAssessments
                 .FirstOrDefaultAsync(p => p.PrerequisiteAssessmentId == prerequisiteAssessmentId && p.LessonId == lessonId);
             if (prerequisite == null)
@@ -101,7 +131,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
                     "Not Found",
                     $"Prerequisite assessment with Id {prerequisiteAssessmentId} not found for lesson {lessonId}.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 

@@ -76,7 +76,7 @@ export const createCourse = async (tenant: string, request: CreateCourseRequest)
 // Update an existing course
 export const updateCourse = async (tenant: string, id: number, request: UpdateCourseRequest): Promise<CourseResponse> => {
     try {
-        const response = await api.put<CourseResponse>(`/${encodeURIComponent(tenant)}/api/v1/courses/${id}`, request);
+        const response = await api.post<CourseResponse>(`/${encodeURIComponent(tenant)}/api/v1/courses/${id}`, request);
         return response.data;
     } catch (error: any) {
         if (error.response) {

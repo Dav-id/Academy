@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLoaderData, LoaderFunctionArgs, Link, useSea
 import { useQuery } from '@tanstack/react-query';
 import { getTenant, TenantResponse } from '../../services/tenants/tenantService';
 import { getCourses, ListCoursesResponse, CourseResponse } from '../../services/courses/courseService';
-import { getUserProfiles, UserProfile, ListUserProfilesResponse } from '../../services/users/userService';
+import { getAccounts, AccountResponse, ListAccountsResponse } from '../../services/accounts/accountService';
 import { Heading, Subheading } from '../../components/heading';
 import { Button } from '../../components/button';
 import { Divider } from '../../components/divider';
@@ -44,6 +44,7 @@ export default function TenantDetailsPage() {
     // Pagination state
     const [searchParams, setSearchParams] = useSearchParams();
     const page = parseInt(searchParams.get('page') || '1', 10);
+    const accountPage = parseInt(searchParams.get('accountPage') || '1', 10);
 
     // Fetch tenant
     const {
@@ -76,9 +77,9 @@ export default function TenantDetailsPage() {
         isLoading: isUsersLoading,
         isError: isUsersError,
         error: usersError,
-    } = useQuery<ListUserProfilesResponse, any>({
-        queryKey: ['users', tenantUrlStub],
-        queryFn: () => getUserProfiles(tenantUrlStub!),
+    } = useQuery<ListAccountsResponse, any>({
+        queryKey: ['users', tenantUrlStub, accountPage, PAGE_SIZE],
+        queryFn: () => getAccounts(tenantUrlStub!, accountPage, PAGE_SIZE),
         enabled: !!tenantUrlStub,
     });
 
@@ -255,8 +256,8 @@ export default function TenantDetailsPage() {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {usersData?.users && usersData.users.length > 0 ? (
-                                        usersData.users.map(user => (
+                                            {usersData?.users && usersData.users.length > 0 ? (
+                                                usersData.users.map(user => (
                                             <TableRow key={user.id}>
                                                 <TableCell>
                                                     <Link to={`/${tenant.urlStub}/accounts/${user.id}`}>

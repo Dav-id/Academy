@@ -1,6 +1,9 @@
+using Academy.Services.Api.Extensions;
 using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
+using Academy.Shared.Data.Models.Assessments;
 
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
@@ -55,6 +58,7 @@ namespace Academy.Services.Api.Endpoints.Accounts
         private static async Task<Results<Ok<ListUserProfilesResponse>, BadRequest<ErrorResponse>>> GetUserProfiles(
             string tenant,
             ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor,
             int page = 1,
             int pageSize = 20)
         {
@@ -71,6 +75,32 @@ namespace Academy.Services.Api.Endpoints.Accounts
             if (pageSize > 100)
             {
                 pageSize = 100;
+            }
+
+            System.Security.Claims.ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "User is not authenticated.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
+            long? userId = user?.GetUserId();
+
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "You do not have access.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
             }
 
             int totalCount = await db.UserProfiles.AsNoTracking().CountAsync();
@@ -100,13 +130,39 @@ namespace Academy.Services.Api.Endpoints.Accounts
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            UserProfileResponse? user = await db.UserProfiles
+            System.Security.Claims.ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "User is not authenticated.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
+            long? userId = user?.GetUserId();
+
+            if (!isInstructor && userId != id)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "You do not have access to this user.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            UserProfileResponse? userProfile = await db.UserProfiles
                 .AsNoTracking()
                 .Where(u => u.Id == id)
                 .Select(u => new UserProfileResponse(u.Id, u.FirstName, u.LastName, u.Email, !u.IsDeleted))
                 .FirstOrDefaultAsync();
 
-            if (user == null)
+            if (userProfile == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
@@ -117,7 +173,7 @@ namespace Academy.Services.Api.Endpoints.Accounts
                 ));
             }
 
-            return TypedResults.Ok(user);
+            return TypedResults.Ok(userProfile);
         }
 
         /// <summary>

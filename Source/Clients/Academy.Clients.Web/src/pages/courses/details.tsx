@@ -162,7 +162,7 @@ export default function CourseDetailsPage() {
                                 .map((module) => (
                                     <TableRow key={module.id}>
                                         <TableCell>
-                                            <Link to={`/${tenantUrlStub}/courses/${courseId}/modules/${module.id}`}>
+                                            <Link href={`/${tenantUrlStub}/courses/${courseId}/modules/${module.id}`}>
                                                 {module.title}
                                             </Link>
                                         </TableCell>

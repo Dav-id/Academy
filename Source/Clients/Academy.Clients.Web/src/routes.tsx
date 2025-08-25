@@ -9,6 +9,11 @@ import TenantListPage, { loader as tenantListLoader } from './pages/tenants/inde
 import TenantDetailsPage, { loader as tenantDetailsLoader } from './pages/tenants/details';
 import TenantUpdatePage, { loader as tenantUpdateLoader } from './pages/tenants/update';
 
+import AccountListPage, { loader as accountListLoader } from './pages/accounts/index';
+//import AccountCreatePage from './pages/accounts/create';
+//import AccountDetailsPage, { loader as accountDetailLoader } from './pages/accounts/details';
+//import AccountUpdatePage, { loader as accountUpdateLoader } from './pages/accounts/update';
+
 import CourseListPage, { loader as courseListLoader } from './pages/courses/index';
 import CourseCreatePage from './pages/courses/create';
 import CourseDetailsPage, { loader as courseDetailLoader } from './pages/courses/details';
@@ -70,6 +75,42 @@ const router = createBrowserRouter([
                 ),
                 loader: tenantDetailsLoader,
             },
+            {
+                path: ':tenantUrlStub/accounts',
+                element: (
+                    <ProtectedRoute>
+                        <AccountListPage />
+                    </ProtectedRoute>
+                ),
+                loader: accountListLoader,
+            },
+            //{
+            //    path: ':tenantUrlStub/accounts/create',
+            //    element: (
+            //        <ProtectedRoute requiredRoles={["Administrator", ":tenantUrlStub:Administrator", ":tenantUrlStub:Instructor"]}>
+            //            <CourseCreatePage />
+            //        </ProtectedRoute>
+            //    ),
+            //    loader: courseListLoader,
+            //},
+            //{
+            //    path: ':tenantUrlStub/accounts/:courseId/update',
+            //    element: (
+            //        <ProtectedRoute requiredRoles={["Administrator", ":tenantUrlStub:Administrator", ":tenantUrlStub:Instructor"]}>
+            //            <CourseUpdatePage />
+            //        </ProtectedRoute>
+            //    ),
+            //    loader: courseUpdateLoader,
+            //},
+            //{
+            //    path: ':tenantUrlStub/accounts/:courseId',
+            //    element: (
+            //        <ProtectedRoute>
+            //            <DetailsPage />
+            //        </ProtectedRoute>
+            //    ),
+            //    loader: courseDetailLoader,
+            //},
             {
                 path: ':tenantUrlStub/courses',
                 element: (
@@ -149,7 +190,7 @@ const router = createBrowserRouter([
                         <ChangelogPage />
                     </ProtectedRoute>
                 ),
-            },
+            }
         ],
     },
 ]);

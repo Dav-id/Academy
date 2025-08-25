@@ -1,12 +1,11 @@
-import { useParams, useNavigate, useLoaderData, LoaderFunctionArgs, useSearchParams, Link } from 'react-router-dom';
+import { useParams, useLoaderData, LoaderFunctionArgs, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCourses, ListCoursesResponse, CourseResponse } from '../../services/courses/courseService';
+import { getAccounts, AccountResponse, ListAccountsResponse } from '../../services/accounts/accountService';
 import { Heading } from '../../components/heading';
 import { Button } from '../../components/button';
 import { Divider } from '../../components/divider';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/table';
 import { Fieldset, Field, ErrorMessage } from '../../components/fieldset';
-import { useAuth } from '../../lib/auth/AuthContext';
 import {
     Pagination,
     PaginationGap,
@@ -14,30 +13,31 @@ import {
     PaginationNext,
     PaginationPage,
     PaginationPrevious,
-} from '../../components/pagination'
+} from '../../components/pagination';
+import { useAuth } from '../../lib/auth/AuthContext';
 
 const PAGE_SIZE = 10;
 
 // Loader for React Router
-export async function loader({ params, request }: LoaderFunctionArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
     const tenantUrlStub = params.tenantUrlStub as string;
-    if (!tenantUrlStub) throw new Response('Not Found', { status: 404 });
-
     // Get page from query string
     const url = new URL(request?.url || '', window.location.origin);
     const page = parseInt(url.searchParams.get('page') || '1', 10);
 
     try {
-        return await getCourses(tenantUrlStub, page, PAGE_SIZE);
+        return await getAccounts(tenantUrlStub!, page, PAGE_SIZE);
     } catch (err: any) {
-        throw new Response(err?.title || 'Failed to load courses', { status: 404 });
+        throw new Response(err?.title || 'Failed to load accounts', { status: 404 });
     }
 }
 
-export default function CourseListPage() {
-    const { tenantUrlStub } = useParams<{ tenantUrlStub: string }>();
+export default function AccountListPage() {
+
+    const { tenantUrlStub } = useParams<{ tenantUrlStub: string;}>();
+
     const navigate = useNavigate();
-    const initialCourses = useLoaderData() as ListCoursesResponse;
+    const initialAccounts = useLoaderData() as ListAccountsResponse;
 
     // Pagination state
     const [searchParams, setSearchParams] = useSearchParams();
@@ -48,22 +48,18 @@ export default function CourseListPage() {
         isLoading,
         isError,
         error,
-    } = useQuery<ListCoursesResponse, any>({
-        queryKey: ['courses', tenantUrlStub, page, PAGE_SIZE],
-        queryFn: () => getCourses(tenantUrlStub!, page, PAGE_SIZE),
-        initialData: initialCourses,
-        enabled: !!tenantUrlStub,
+    } = useQuery<ListAccountsResponse, any>({
+        queryKey: ['accounts', page, PAGE_SIZE],
+        queryFn: () => getAccounts(tenantUrlStub!, page, PAGE_SIZE),
+        initialData: initialAccounts,
     });
 
     const { roles } = useAuth();
-    const canCreateCourse =
-        roles.includes('Administrator') ||
-        roles.includes(`${tenantUrlStub}:Administrator`) ||
-        roles.includes(`${tenantUrlStub}:Instructor`);
+    const canCreateAccount = roles.includes('Administrator');
 
-    const courses = data?.courses ?? [];
-    const totalCourses = data?.totalCourseCount || 0;
-    const totalPages = Math.ceil(totalCourses / PAGE_SIZE);
+    const accounts = data?.users ?? [];
+    const totalAccounts = data?.totalCount ?? 0;
+    const totalPages = Math.ceil(totalAccounts / PAGE_SIZE);
 
     const handlePageChange = (newPage: number) => {
         setSearchParams({ page: newPage.toString() });
@@ -79,7 +75,7 @@ export default function CourseListPage() {
                 <Button onClick={() => navigate(-1)}>Back</Button>
                 <Fieldset>
                     <Field>
-                        <ErrorMessage>{error?.title || 'Failed to load courses'}</ErrorMessage>
+                        <ErrorMessage>{error?.title || 'Failed to load accounts'}</ErrorMessage>
                     </Field>
                 </Fieldset>
             </div>
@@ -89,33 +85,33 @@ export default function CourseListPage() {
     return (
         <div className="mx-auto">
             <div className="flex w-full flex-wrap items-end justify-between gap-4">
-                <Heading>Courses</Heading>
-                {canCreateCourse ? <Button href={`/${tenantUrlStub}/courses/create`}>New Course</Button>  : null}
+                <Heading>Accounts</Heading>
+                {canCreateAccount ? (
+                    <Button href={`/${tenantUrlStub}/accounts/create`}>New Account</Button>
+                ) : null}
             </div>
             <Divider className="my-6" soft />
             <Table>
                 <TableHead>
                     <TableRow>
-                        <TableHeader>Title</TableHeader>
-                        <TableHeader>Description</TableHeader>
+                        <TableHeader>Name</TableHeader>
+                        <TableHeader>Email</TableHeader>
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {courses.length === 0 ? (
+                    {accounts.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={2} className="text-center text-zinc-500">
-                                No courses found.
+                            <TableCell colSpan={3} className="text-center text-zinc-500">
+                                No accounts found.
                             </TableCell>
                         </TableRow>
                     ) : (
-                        courses.map((course: CourseResponse) => (
-                            <TableRow key={course.id} href={`/${tenantUrlStub}/courses/${course.id}`}>
+                        accounts.map((account: AccountResponse) => (
+                            <TableRow key={account.id} href={`/${tenantUrlStub}/accounts/${account.id}`}>
                                 <TableCell>
-                                    <Link to={`/${tenantUrlStub}/courses/${course.id}`}>
-                                        {course.title}
-                                    </Link>
+                                    <Link to={`/${tenantUrlStub}/accounts/${account.id}`}>{account.firstName} {account.lastName}</Link>
                                 </TableCell>
-                                <TableCell className="text-zinc-500">{course.description}</TableCell>
+                                <TableCell>{account.email}</TableCell>
                             </TableRow>
                         ))
                     )}
@@ -131,7 +127,6 @@ export default function CourseListPage() {
                     <PaginationList>
                         {Array.from({ length: totalPages }).map((_, idx) => {
                             const pageNum = idx + 1;
-                            // Show first, last, current, and neighbors; use PaginationGap for gaps
                             if (
                                 pageNum === 1 ||
                                 pageNum === totalPages ||

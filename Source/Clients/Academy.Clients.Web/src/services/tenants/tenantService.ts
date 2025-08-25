@@ -75,7 +75,7 @@ export const createTenant = async (request: CreateTenantRequest): Promise<Tenant
 
 export const updateTenant = async (urlStub: string, request: UpdateTenantRequest): Promise<TenantResponse> => {
     try {
-        const response = await api.put<TenantResponse>(`/api/v1/tenants/${encodeURIComponent(urlStub)}`, request);
+        const response = await api.post<TenantResponse>(`/api/v1/tenants/${encodeURIComponent(urlStub)}`, request);
         return response.data;
     } catch (error: any) {
         if (error.response) {

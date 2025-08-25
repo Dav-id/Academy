@@ -20,12 +20,13 @@ export interface CourseResponse {
 
 export interface ListCoursesResponse {
     courses: CourseResponse[];
+    totalCourseCount: number;
 }
 
 // Fetch all courses for a tenant
-export const getCourses = async (tenant: string): Promise<ListCoursesResponse> => {
+export const getCourses = async (tenant: string, page: Number, pageSize: Number): Promise<ListCoursesResponse> => {
     try {
-        const response = await api.get<ListCoursesResponse>(`/${encodeURIComponent(tenant)}/api/v1/courses`);
+        const response = await api.get<ListCoursesResponse>(`/${encodeURIComponent(tenant)}/api/v1/courses?page=${page}&pageSize=${pageSize}`);
         return response.data;
     } catch (error: any) {
         if (error.response) {

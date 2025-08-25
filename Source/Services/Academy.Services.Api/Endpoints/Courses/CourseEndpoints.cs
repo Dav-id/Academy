@@ -132,7 +132,7 @@ namespace Academy.Services.Api.Endpoints.Courses
             }
 
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
-            long? userId = user.GetUserId();
+            long? userId = user?.GetUserId();
 
             IQueryable<Shared.Data.Models.Courses.Course> query = db.Courses
                 .AsNoTracking()

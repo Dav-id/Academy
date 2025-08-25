@@ -42,7 +42,7 @@ namespace Academy.Services.Api.Endpoints.Tenants
             app.MapPost("/api/v1/tenants/{tenant}", UpdateTenant)
                 .Validate<RouteHandlerBuilder, UpdateTenantRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization("Administrator");
+                .RequireAuthorization();
             Routes.Add("POST: /api/v1/tenants/{tenant}");
 
             app.MapDelete("/api/v1/tenants/{tenant}", DeleteTenant)
@@ -236,6 +236,34 @@ namespace Academy.Services.Api.Endpoints.Tenants
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            if (user == null ||
+                !(user.IsInRole("Administrator") || user.IsInRole($"{tenant}:Administrator")))
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to update this tenant.",
+                    null,
+                    httpContextAccessor.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            if (tenant != request.UrlStub)
+            {
+                bool exists = await db.Tenants.AnyAsync(t => t.UrlStub == request.UrlStub && !t.IsDeleted);
+                if (exists)
+                {
+                    return TypedResults.BadRequest(new ErrorResponse(
+                        StatusCodes.Status409Conflict,
+                        "Conflict",
+                        $"A tenant with UrlStub '{request.UrlStub}' already exists.",
+                        null,
+                        httpContextAccessor.HttpContext?.TraceIdentifier
+                    ));
+                }
+            }
+
             Shared.Data.Models.Tenants.Tenant? t = await db.Tenants.FirstOrDefaultAsync(t => t.UrlStub == tenant);
             if (t == null)
             {

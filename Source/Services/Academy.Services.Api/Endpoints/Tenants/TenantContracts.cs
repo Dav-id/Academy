@@ -23,7 +23,6 @@ namespace Academy.Services.Api.Endpoints.Tenants
         /// Request to update a tenant.
         /// </summary>
         public record UpdateTenantRequest(
-            long Id,
             string UrlStub,
             string Title,
             string? Description
@@ -69,7 +68,6 @@ namespace Academy.Services.Api.Endpoints.Tenants
     {
         public UpdateTenantValidator()
         {
-            RuleFor(x => x.Id).GreaterThan(0);
             RuleFor(x => x.UrlStub).NotEmpty().MaximumLength(20);
             RuleFor(x => x.Title).NotEmpty().MaximumLength(200);
             RuleFor(x => x.Description).MaximumLength(1000);

@@ -4,9 +4,10 @@ import RootLayout from './layouts/RootLayout';
 import ErrorPage from './pages/errors/error';
 
 // Example loader
+import TenantCreatePage from './pages/tenants/create';
 import TenantListPage, { loader as tenantListLoader } from './pages/tenants/index';
 import TenantDetailsPage, { loader as tenantDetailsLoader } from './pages/tenants/details';
-import TenantCreatePage from './pages/tenants/create';
+import TenantUpdatePage, { loader as tenantUpdateLoader } from './pages/tenants/update';
 
 import CourseListPage, { loader as courseListLoader } from './pages/courses/index';
 import CourseCreatePage from './pages/courses/create';
@@ -43,6 +44,15 @@ const router = createBrowserRouter([
                         <TenantCreatePage />
                     </ProtectedRoute>
                 ),
+            },
+            {
+                path: ':tenantUrlStub/update',
+                element: (
+                    <ProtectedRoute requiredRoles={["Administrator", ":tenantUrlStub:Administrator"]}>
+                        <TenantUpdatePage />
+                    </ProtectedRoute>
+                ),
+                loader: tenantUpdateLoader,
             },
             {
                 path: ':tenantUrlStub',

@@ -59,7 +59,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             int pageSize = 20)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
-            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            bool isInstructor = (user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false);
             long? userId = user?.GetUserId();
 
             IQueryable<Shared.Data.Models.Assessments.AssessmentQuestionAnswer> query = db.AssessmentQuestionAnswers
@@ -122,7 +122,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             IHttpContextAccessor httpContextAccessor)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
-            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            bool isInstructor = (user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false);
             long? userId = user?.GetUserId();
 
             IQueryable<Shared.Data.Models.Assessments.AssessmentQuestionAnswer> query = db.AssessmentQuestionAnswers

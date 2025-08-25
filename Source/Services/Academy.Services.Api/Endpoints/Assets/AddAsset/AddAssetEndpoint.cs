@@ -4,7 +4,6 @@ using Academy.Shared.Storage;
 using Academy.Shared.Storage.Models;
 
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 
 using static Academy.Services.Api.Endpoints.Assets.AddAsset.AddAssetContracts;
@@ -24,7 +23,7 @@ namespace Academy.Services.Api.Endpoints.Assets.AddAsset
             .Validate<RouteHandlerBuilder, AddAssetRequest>()
             .DisableAntiforgery()
             .ProducesValidationProblem()
-            .RequireAuthorization(); from .RequireAuthorization("Instructor")
+            .RequireAuthorization();
 
             // Log mapped routes
             Routes.Add($"PUT: {path}");
@@ -56,7 +55,7 @@ namespace Academy.Services.Api.Endpoints.Assets.AddAsset
             }
 
             // Check if the user has the required roles (tenant-scoped)
-            if (!cp.IsInRole($"{tenant}:Administrator") && !cp.IsInRole($"{tenant}:Instructor"))
+            if (!cp.IsInRole("Administrator") && !cp.IsInRole($"{tenant}:Administrator") && !cp.IsInRole($"{tenant}:Instructor"))
             {
                 logger.LogError("AddAsset called by user without sufficient permissions. UserId: {UserId}", cp.GetUserId());
                 return TypedResults.BadRequest(

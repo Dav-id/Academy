@@ -71,7 +71,7 @@ namespace Academy.Services.Api.Endpoints.Courses
                 ));
             }
 
-            bool isInstructor = user.IsInRole($"{tenant}:Instructor");
+            bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
             long? userId = user.GetUserId();
 
             // Only show modules if user is instructor or enrolled
@@ -130,7 +130,7 @@ namespace Academy.Services.Api.Endpoints.Courses
                 ));
             }
 
-            bool isInstructor = user.IsInRole($"{tenant}:Instructor");
+            bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
             long? userId = user.GetUserId();
 
             bool hasAccess = isInstructor || (userId.HasValue && await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value));
@@ -176,7 +176,7 @@ namespace Academy.Services.Api.Endpoints.Courses
             IHttpContextAccessor httpContextAccessor)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
-            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            bool isInstructor = (user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false);
             if (!isInstructor)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
@@ -217,7 +217,7 @@ namespace Academy.Services.Api.Endpoints.Courses
             IHttpContextAccessor httpContextAccessor)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
-            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            bool isInstructor = (user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false);
             if (!isInstructor)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
@@ -274,7 +274,7 @@ namespace Academy.Services.Api.Endpoints.Courses
             IHttpContextAccessor httpContextAccessor)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
-            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            bool isInstructor = (user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false);
             if (!isInstructor)
             {
                 return TypedResults.BadRequest(new ErrorResponse(

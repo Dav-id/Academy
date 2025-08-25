@@ -134,7 +134,7 @@ namespace Academy.Services.Api.Endpoints.Accounts
             IHttpContextAccessor httpContextAccessor)
         {
             System.Security.Claims.ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
-            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            bool isInstructor = (user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false);
             if (!isInstructor)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
@@ -182,7 +182,7 @@ namespace Academy.Services.Api.Endpoints.Accounts
 
             // Get current user ID (assuming it's stored as a claim named "Id")
             string? userIdClaim = user?.FindFirst("Id")?.Value;
-            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            bool isInstructor = (user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false);
 
             if (!long.TryParse(userIdClaim, out long currentUserId))
             {
@@ -255,7 +255,7 @@ namespace Academy.Services.Api.Endpoints.Accounts
             IHttpContextAccessor httpContextAccessor)
         {
             System.Security.Claims.ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
-            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            bool isInstructor = (user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false);
             if (!isInstructor)
             {
                 return TypedResults.BadRequest(new ErrorResponse(

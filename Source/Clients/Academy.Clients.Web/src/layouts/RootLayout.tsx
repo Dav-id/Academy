@@ -193,9 +193,9 @@ const RootLayout = () => {
                                         <Square2StackIcon />
                                         <SidebarLabel>Courses</SidebarLabel>
                                     </SidebarItem>
-                                    <SidebarItem href={`/${tenantUrlStub}/users`} current={false}>
+                                    <SidebarItem href={`/${tenantUrlStub}/accounts`} current={false}>
                                         <Square2StackIcon />
-                                        <SidebarLabel>Users</SidebarLabel>
+                                        <SidebarLabel>Accounts</SidebarLabel>
                                     </SidebarItem>
                                 </>
                             )}

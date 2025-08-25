@@ -1,8 +1,0 @@
-# Treat all as text, normalize line endings; rely on editor to save UTF-8
-* text=auto
-*.ts  text
-*.tsx text
-*.js  text
-*.jsx text
-*.css text
-*.md  text

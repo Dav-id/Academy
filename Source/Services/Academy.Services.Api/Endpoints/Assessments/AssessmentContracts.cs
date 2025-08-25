@@ -42,7 +42,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// <summary>
         /// Response for a list of assessments.
         /// </summary>
-        public record ListAssessmentsResponse(IReadOnlyList<AssessmentResponse> Assessments);
+        public record ListAssessmentsResponse(IReadOnlyList<AssessmentResponse> Assessments, int TotalAssessmentCount);
     }
 
     /// <summary>

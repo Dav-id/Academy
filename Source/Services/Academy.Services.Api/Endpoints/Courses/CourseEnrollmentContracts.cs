@@ -18,6 +18,11 @@ namespace Academy.Services.Api.Endpoints.Courses
         /// Response for a course enrollment.
         /// </summary>
         public record EnrollmentResponse(long Id, long CourseId, long UserProfileId, DateTime EnrolledOn, bool IsCompleted);
+
+        /// <summary>
+        /// Response for a list of course enrollments.
+        /// </summary>        
+        public record ListEnrollmentsResponse(IReadOnlyList<EnrollmentResponse> Enrollments, int TotalEnrollmentCount);
     }
 
     /// <summary>

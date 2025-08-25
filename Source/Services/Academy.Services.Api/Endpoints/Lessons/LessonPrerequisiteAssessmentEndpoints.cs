@@ -1,3 +1,4 @@
+using Academy.Services.Api.Extensions;
 using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
 
@@ -21,17 +22,17 @@ namespace Academy.Services.Api.Endpoints.Lessons
         {
             app.MapGet("/{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments", GetLessonPrerequisiteAssessments)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/lessons/{{lessonId}}/prerequisite-assessments");
+            Routes.Add("GET: /{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments?page={page}&pageSize={pageSize}");
 
             app.MapPost("/{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments", CreateLessonPrerequisiteAssessment)
                 .Validate<RouteHandlerBuilder, CreateLessonPrerequisiteAssessmentRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add($"POST: /{{tenant}}/api/v1/lessons/{{lessonId}}/prerequisite-assessments");
+            Routes.Add("POST: /{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments");
 
             app.MapDelete("/{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments/{prerequisiteAssessmentId}", DeleteLessonPrerequisiteAssessment)
                 .RequireAuthorization();
-            Routes.Add($"DELETE: /{{tenant}}/api/v1/lessons/{{lessonId}}/prerequisite-assessments/{{prerequisiteAssessmentId}}");
+            Routes.Add("DELETE: /{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments/{prerequisiteAssessmentId}");
         }
 
         /// <summary>
@@ -40,14 +41,79 @@ namespace Academy.Services.Api.Endpoints.Lessons
         private static async Task<Results<Ok<ListLessonPrerequisiteAssessmentsResponse>, BadRequest<ErrorResponse>>> GetLessonPrerequisiteAssessments(
             string tenant,
             long lessonId,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor,
+            int page = 1,
+            int pageSize = 20)
         {
-            List<LessonPrerequisiteAssessmentResponse> prerequisites = await db.LessonPrerequisiteAssessments
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "User is not authenticated.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            bool isInstructor = user.IsInRole($"{tenant}:Instructor");
+            long? userId = user.GetUserId();
+
+            // Get the courseId for this lesson
+            Shared.Data.Models.Lessons.Lesson? lesson = await db.Lessons
+                .Include(l => l.CourseModule)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(l => l.Id == lessonId);
+
+            if (lesson == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status404NotFound,
+                    "Not Found",
+                    $"Lesson with Id {lessonId} not found.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            long? courseId = lesson.CourseModule?.CourseId;
+
+            bool hasAccess = isInstructor ||
+                (userId.HasValue && courseId.HasValue &&
+                 await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value));
+
+            if (!hasAccess)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You do not have access to this lesson's prerequisite assessments.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            int totalCount = await db.LessonPrerequisiteAssessments
+                .AsNoTracking()
                 .Where(p => p.LessonId == lessonId)
+                .CountAsync();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
+            List<LessonPrerequisiteAssessmentResponse> prerequisites = await db.LessonPrerequisiteAssessments
+                .AsNoTracking()
+                .Where(p => p.LessonId == lessonId)
+                .OrderBy(p => p.PrerequisiteAssessmentId)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(p => new LessonPrerequisiteAssessmentResponse(p.LessonId, p.PrerequisiteAssessmentId ?? 0))
                 .ToListAsync();
 
-            return TypedResults.Ok(new ListLessonPrerequisiteAssessmentsResponse(prerequisites));
+            return TypedResults.Ok(new ListLessonPrerequisiteAssessmentsResponse(prerequisites, totalCount));
         }
 
         /// <summary>

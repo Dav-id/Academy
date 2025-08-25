@@ -41,7 +41,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// <summary>
         /// Response for a list of lesson contents.
         /// </summary>
-        public record ListLessonContentsResponse(IReadOnlyList<LessonContentResponse> Contents);
+        public record ListLessonContentsResponse(IReadOnlyList<LessonContentResponse> Contents, int TotalLessonContentCount);
     }
 
     /// <summary>

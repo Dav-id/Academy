@@ -24,27 +24,27 @@ namespace Academy.Services.Api.Endpoints.Roles
         {
             app.MapGet("/{tenant}/api/v1/roles/external-mappings", GetMappings)
                 .RequireAuthorization("Administrator");
-            Routes.Add($"GET: /{{tenant}}/api/v1/roles/external-mappings");
+            Routes.Add("GET: /{tenant}/api/v1/roles/external-mappings");
 
             app.MapGet("/{tenant}/api/v1/roles/external-mappings/{id}", GetMapping)
                 .RequireAuthorization("Administrator");
-            Routes.Add($"GET: /{{tenant}}/api/v1/roles/external-mappings/{{id}}");
+            Routes.Add("GET: /{tenant}/api/v1/roles/external-mappings/{id}");
 
             app.MapPost("/{tenant}/api/v1/roles/external-mappings", CreateMapping)
                 .Validate<RouteHandlerBuilder, CreateExternalRoleMappingRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization("Administrator");
-            Routes.Add($"POST: /{{tenant}}/api/v1/roles/external-mappings");
+            Routes.Add("POST: /{tenant}/api/v1/roles/external-mappings");
 
             app.MapPut("/{tenant}/api/v1/roles/external-mappings/{id}", UpdateMapping)
                 .Validate<RouteHandlerBuilder, UpdateExternalRoleMappingRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization("Administrator");
-            Routes.Add($"PUT: /{{tenant}}/api/v1/roles/external-mappings/{{id}}");
+            Routes.Add("PUT: /{tenant}/api/v1/roles/external-mappings/{id}");
 
             app.MapDelete("/{tenant}/api/v1/roles/external-mappings/{id}", DeleteMapping)
                 .RequireAuthorization("Administrator");
-            Routes.Add($"DELETE: /{{tenant}}/api/v1/roles/external-mappings/{{id}}");
+            Routes.Add("DELETE: /{tenant}/api/v1/roles/external-mappings/{id}");
         }
 
         /// <summary>

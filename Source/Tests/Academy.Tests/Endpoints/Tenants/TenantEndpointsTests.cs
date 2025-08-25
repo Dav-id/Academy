@@ -94,12 +94,12 @@ namespace Academy.Tests.Endpoints.Tenants
                 TenantAccountOwnerEmail: "alice@example.com"
             );
 
-            var fakeAuthClient = new FakeAuthClient();
+            FakeAuthClient fakeAuthClient = new FakeAuthClient();
 
             FakeHttpContextAccessor httpContextAccessor = new(isAdministrator: true);
 
             // Act
-            var result = await TenantEndpoints.CreateTenant(request, db, httpContextAccessor, fakeAuthClient);
+            Results<Ok<TenantContracts.TenantResponse>, BadRequest<ErrorResponse>> result = await TenantEndpoints.CreateTenant(request, db, httpContextAccessor, fakeAuthClient);
 
             // Assert
             Ok<TenantContracts.TenantResponse>? okResult = result.Result as Ok<TenantContracts.TenantResponse>;

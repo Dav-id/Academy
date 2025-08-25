@@ -19,31 +19,31 @@ namespace Academy.Services.Api.Endpoints.Lessons
         public static readonly List<string> Routes = [];
 
         public static void AddEndpoints(this IEndpointRouteBuilder app)
-        {            
+        {
             app.MapGet("/{tenant}/api/v1/modules/{moduleId}/lessons", GetLessons)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/modules/{{moduleId}}/lessons");
+            Routes.Add("GET: /{tenant}/api/v1/modules/{moduleId}/lessons?page={page}&pageSize={pageSize}");
 
             app.MapGet("/{tenant}/api/v1/modules/{moduleId}/lessons/{id}", GetLesson)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/modules/{{moduleId}}/lessons/{{id}}");
+            Routes.Add("GET: /{tenant}/api/v1/modules/{moduleId}/lessons/{id}");
 
             app.MapPost("/{tenant}/api/v1/modules/{moduleId}/lessons", CreateLesson)
                 .Validate<RouteHandlerBuilder, CreateLessonRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add($"POST: /{{tenant}}/api/v1/modules/{{moduleId}}/lessons");
+            Routes.Add("POST: /{tenant}/api/v1/modules/{moduleId}/lessons");
 
             // Update uses POST as it expects the full entity in the body, not just the fields to update.
             app.MapPost("/{tenant}/api/v1/modules/{moduleId}/lessons/{id}", UpdateLesson)
                 .Validate<RouteHandlerBuilder, UpdateLessonRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add($"POST: /{{tenant}}/api/v1/modules/{{moduleId}}/lessons/{{id}}");
+            Routes.Add("POST: /{tenant}/api/v1/modules/{moduleId}/lessons/{id}");
 
             app.MapDelete("/{tenant}/api/v1/modules/{moduleId}/lessons/{id}", DeleteLesson)
                 .RequireAuthorization();
-            Routes.Add($"DELETE: /{{tenant}}/api/v1/modules/{{moduleId}}/lessons/{{id}}");
+            Routes.Add("DELETE: /{tenant}/api/v1/modules/{moduleId}/lessons/{id}");
         }
 
         /// <summary>
@@ -53,14 +53,19 @@ namespace Academy.Services.Api.Endpoints.Lessons
             string tenant,
             long moduleId,
             ApplicationDbContext db,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            int page = 1,
+            int pageSize = 20)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
             bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
             long? userId = user?.GetUserId();
 
             // Only show lessons if user is instructor or enrolled in the course
-            Shared.Data.Models.Courses.CourseModule? module = await db.CourseModules.Include(m => m.Course).FirstOrDefaultAsync(m => m.Id == moduleId);
+            Shared.Data.Models.Courses.CourseModule? module = await db.CourseModules
+                .Include(m => m.Course)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.Id == moduleId);
             if (module == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
@@ -85,13 +90,25 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 ));
             }
 
+            int totalCount = await db.Lessons
+                .AsNoTracking()
+                .Where(l => l.CourseModuleId == moduleId)
+                .CountAsync();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
             List<LessonResponse> lessons = await db.Lessons
+                .AsNoTracking()
                 .Where(l => l.CourseModuleId == moduleId)
                 .OrderBy(l => l.Order)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(l => new LessonResponse(l.Id, l.CourseModuleId, l.Title, l.Summary, l.Order, l.AvailableFrom, l.AvailableTo))
                 .ToListAsync();
 
-            return TypedResults.Ok(new ListLessonsResponse(lessons));
+            return TypedResults.Ok(new ListLessonsResponse(lessons, totalCount));
         }
 
         /// <summary>
@@ -108,7 +125,10 @@ namespace Academy.Services.Api.Endpoints.Lessons
             bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
             long? userId = user?.GetUserId();
 
-            Shared.Data.Models.Courses.CourseModule? module = await db.CourseModules.Include(m => m.Course).FirstOrDefaultAsync(m => m.Id == moduleId);
+            Shared.Data.Models.Courses.CourseModule? module = await db.CourseModules
+                .Include(m => m.Course)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.Id == moduleId);
             if (module == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
@@ -134,6 +154,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
             }
 
             LessonResponse? lesson = await db.Lessons
+                .AsNoTracking()
                 .Where(l => l.CourseModuleId == moduleId && l.Id == id)
                 .Select(l => new LessonResponse(l.Id, l.CourseModuleId, l.Title, l.Summary, l.Order, l.AvailableFrom, l.AvailableTo))
                 .FirstOrDefaultAsync();

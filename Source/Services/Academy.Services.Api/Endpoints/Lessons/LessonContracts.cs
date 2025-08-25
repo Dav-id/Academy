@@ -50,7 +50,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// <summary>
         /// Response for a list of lessons.
         /// </summary>
-        public record ListLessonsResponse(IReadOnlyList<LessonResponse> Lessons);
+        public record ListLessonsResponse(IReadOnlyList<LessonResponse> Lessons, int TotalLessonCount);
     }
 
     /// <summary>

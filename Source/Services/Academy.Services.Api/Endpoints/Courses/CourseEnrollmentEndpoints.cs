@@ -24,19 +24,19 @@ namespace Academy.Services.Api.Endpoints.Courses
         /// </summary>
         public static void AddEndpoints(this IEndpointRouteBuilder app)
         {
+            app.MapGet("/{tenant}/api/v1/courses/{courseId}/enrollments", GetCourseEnrollments)
+                .RequireAuthorization();
+            Routes.Add("GET: /{tenant}/api/v1/courses/{courseId}/enrollments?page={page}&pageSize={pageSize}");
+
             app.MapPost("/{tenant}/api/v1/courses/{courseId}/enroll", EnrollInCourse)
                 .Validate<RouteHandlerBuilder, EnrollRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization("Instructor");
-            Routes.Add($"POST: /{{tenant}}/api/v1/courses/{{courseId}}/enroll");
+                .RequireAuthorization();
+            Routes.Add("POST: /{tenant}/api/v1/courses/{courseId}/enroll");
 
             app.MapDelete("/{tenant}/api/v1/courses/{courseId}/enroll", UnenrollFromCourse)
-                .RequireAuthorization("Instructor");
-            Routes.Add($"DELETE: /{{tenant}}/api/v1/courses/{{courseId}}/enroll");
-
-            app.MapGet("/{tenant}/api/v1/courses/{courseId}/enrollments", GetCourseEnrollments)
-                .RequireAuthorization("Instructor");
-            Routes.Add($"GET: /{{tenant}}/api/v1/courses/{{courseId}}/enrollments");
+                .RequireAuthorization();
+            Routes.Add("DELETE: /{tenant}/api/v1/courses/{courseId}/enroll");
         }
 
         /// <summary>
@@ -50,6 +50,18 @@ namespace Academy.Services.Api.Endpoints.Courses
             IHttpContextAccessor httpContextAccessor)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to enroll users in courses.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             long? userId = user?.GetUserId();
             if (userId is null)
             {
@@ -58,7 +70,7 @@ namespace Academy.Services.Api.Endpoints.Courses
                     "Unauthorized",
                     "User is not authenticated.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -98,6 +110,18 @@ namespace Academy.Services.Api.Endpoints.Courses
             IHttpContextAccessor httpContextAccessor)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to unenroll users from courses.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             long? userId = user?.GetUserId();
             if (userId is null)
             {
@@ -106,7 +130,7 @@ namespace Academy.Services.Api.Endpoints.Courses
                     "Unauthorized",
                     "User is not authenticated.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -120,12 +144,12 @@ namespace Academy.Services.Api.Endpoints.Courses
                     "Not Found",
                     $"Enrollment for course {courseId} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
             enrollment.IsDeleted = true;
-            enrollment.UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
+            enrollment.UpdatedBy = user?.Identity?.Name ?? "Unknown";
             enrollment.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
@@ -134,19 +158,64 @@ namespace Academy.Services.Api.Endpoints.Courses
         }
 
         /// <summary>
-        /// Gets all enrollments for a course (instructor only).
+        /// Gets all enrollments for a course.
         /// </summary>
-        public static async Task<Results<Ok<List<EnrollmentResponse>>, BadRequest<ErrorResponse>>> GetCourseEnrollments(
+        public static async Task<Results<Ok<ListEnrollmentsResponse>, BadRequest<ErrorResponse>>> GetCourseEnrollments(
             string tenant,
             long courseId,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor,
+            int page = 1,
+            int pageSize = 20)
         {
-            List<EnrollmentResponse> enrollments = await db.CourseEnrollments
-                .Where(e => e.CourseId == courseId)
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "User is not authenticated.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            bool isInstructor = user.IsInRole($"{tenant}:Instructor");
+            long? userId = user.GetUserId();
+
+            IQueryable<Shared.Data.Models.Courses.CourseEnrollment> query;
+
+            if (isInstructor)
+            {
+                query = db.CourseEnrollments
+                    .AsNoTracking()
+                    .Where(e => e.CourseId == courseId);
+            }
+            else if (userId.HasValue)
+            {
+                query = db.CourseEnrollments
+                    .AsNoTracking()
+                    .Where(e => e.CourseId == courseId && e.UserProfileId == userId.Value);
+            }
+            else
+            {
+                return TypedResults.Ok(new ListEnrollmentsResponse([], 0));
+            }
+
+            int totalCount = await query.CountAsync();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
+            List<EnrollmentResponse> enrollments = await query
+                .OrderBy(e => e.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(e => new EnrollmentResponse(e.Id, e.CourseId, e.UserProfileId, e.EnrolledOn, e.IsCompleted))
                 .ToListAsync();
 
-            return TypedResults.Ok(enrollments);
+            return TypedResults.Ok(new ListEnrollmentsResponse(enrollments, totalCount));
         }
     }
 }

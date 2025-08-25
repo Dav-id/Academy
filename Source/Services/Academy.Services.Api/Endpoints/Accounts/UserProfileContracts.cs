@@ -40,7 +40,8 @@ namespace Academy.Services.Api.Endpoints.Accounts
         /// Represents a response containing a list of user profiles.
         /// </summary>
         /// <param name="Users">The list of user profile response objects.</param>
-        public record ListUserProfilesResponse(IReadOnlyList<UserProfileResponse> Users);
+        /// <param name="TotalUserCount">Total number of user profiles.</param>
+        public record ListUserProfilesResponse(IReadOnlyList<UserProfileResponse> Users, int TotalUserCount);
     }
 
     /// <summary>

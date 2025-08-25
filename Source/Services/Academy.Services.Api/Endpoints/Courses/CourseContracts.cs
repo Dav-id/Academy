@@ -36,7 +36,7 @@ namespace Academy.Services.Api.Endpoints.Courses
         /// Represents a response containing a list of courses.
         /// </summary>
         /// <param name="Courses">The list of course response objects.</param>
-        public record ListCoursesResponse(IReadOnlyList<CourseResponse> Courses);
+        public record ListCoursesResponse(IReadOnlyList<CourseResponse> Courses, int TotalCourseCount);
     }
 
     /// <summary>

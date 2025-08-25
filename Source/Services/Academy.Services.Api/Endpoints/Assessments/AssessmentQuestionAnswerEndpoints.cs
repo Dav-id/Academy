@@ -1,5 +1,5 @@
-using Academy.Services.Api.Filters;
 using Academy.Services.Api.Extensions;
+using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -19,30 +19,30 @@ namespace Academy.Services.Api.Endpoints.Assessments
         public static readonly List<string> Routes = [];
 
         public static void AddEndpoints(this IEndpointRouteBuilder app)
-        {            
+        {
             app.MapGet("/{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers", GetAnswers)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/assessments/{{assessmentId}}/questions/{{questionId}}/answers");
+            Routes.Add("GET: /{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers?page={page}&pageSize={pageSize}");
 
             app.MapGet("/{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers/{id}", GetAnswer)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/assessments/{{assessmentId}}/questions/{{questionId}}/answers/{{id}}");
+            Routes.Add("GET: /{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers/{id}");
 
             app.MapPost("/{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers", CreateAnswer)
                 .Validate<RouteHandlerBuilder, CreateAssessmentQuestionAnswerRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add($"POST: /{{tenant}}/api/v1/assessments/{{assessmentId}}/questions/{{questionId}}/answers");
+            Routes.Add("POST: /{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers");
 
             app.MapPut("/{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers/{id}", UpdateAnswer)
                 .Validate<RouteHandlerBuilder, UpdateAssessmentQuestionAnswerRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add($"PUT: /{{tenant}}/api/v1/assessments/{{assessmentId}}/questions/{{questionId}}/answers/{{id}}");
+            Routes.Add("PUT: /{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers/{id}");
 
             app.MapDelete("/{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers/{id}", DeleteAnswer)
                 .RequireAuthorization();
-            Routes.Add($"DELETE: /{{tenant}}/api/v1/assessments/{{assessmentId}}/questions/{{questionId}}/answers/{{id}}");
+            Routes.Add("DELETE: /{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers/{id}");
         }
 
         /// <summary>
@@ -54,13 +54,16 @@ namespace Academy.Services.Api.Endpoints.Assessments
             long assessmentId,
             long questionId,
             ApplicationDbContext db,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            int page = 1,
+            int pageSize = 20)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
             bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
             long? userId = user?.GetUserId();
 
             IQueryable<Shared.Data.Models.Assessments.AssessmentQuestionAnswer> query = db.AssessmentQuestionAnswers
+                .AsNoTracking()
                 .Where(a => a.AssessmentId == assessmentId && a.AssessmentQuestionId == questionId)
                 .Include(a => a.SelectedOptions)
                 .AsQueryable();
@@ -74,13 +77,22 @@ namespace Academy.Services.Api.Endpoints.Assessments
                         "Unauthorized",
                         "User is not authenticated.",
                         null,
-                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                        httpContextAccessor?.HttpContext?.TraceIdentifier
                     ));
                 }
                 query = query.Where(a => a.UserProfileId == userId.Value);
             }
 
+            int totalCount = await query.CountAsync();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
             List<AssessmentQuestionAnswerResponse> answers = await query
+                .OrderBy(a => a.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(a => new AssessmentQuestionAnswerResponse(
                     a.Id,
                     a.AssessmentId,
@@ -94,7 +106,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 ))
                 .ToListAsync();
 
-            return TypedResults.Ok(new ListAssessmentQuestionAnswersResponse(answers));
+            return TypedResults.Ok(new ListAssessmentQuestionAnswersResponse(answers, totalCount));
         }
 
         /// <summary>
@@ -114,6 +126,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             long? userId = user?.GetUserId();
 
             IQueryable<Shared.Data.Models.Assessments.AssessmentQuestionAnswer> query = db.AssessmentQuestionAnswers
+                .AsNoTracking()
                 .Where(a => a.Id == id && a.AssessmentId == assessmentId && a.AssessmentQuestionId == questionId)
                 .Include(a => a.SelectedOptions)
                 .AsQueryable();
@@ -253,7 +266,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 {
                     AssessmentQuestionOptionId = optionId
                 })];
-            
+
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
             long? userId = user?.GetUserId();
 

@@ -1,4 +1,3 @@
-using Academy.Services.Api.Endpoints.Lessons;
 using Academy.Services.Api.Extensions;
 using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
@@ -23,31 +22,30 @@ namespace Academy.Services.Api.Endpoints.Courses
         /// Registers course module endpoints.
         /// </summary>
         public static void AddEndpoints(this IEndpointRouteBuilder app)
-        {            
+        {
             app.MapGet("/{tenant}/api/v1/courses/{courseId}/modules", GetModules)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/courses/{{courseId}}/modules");
+            Routes.Add("GET: /{tenant}/api/v1/courses/{courseId}/modules?page={page}&pageSize={pageSize}");
 
             app.MapGet("/{tenant}/api/v1/courses/{courseId}/modules/{id}", GetModule)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/courses/{{courseId}}/modules/{{id}}");
+            Routes.Add("GET: /{tenant}/api/v1/courses/{courseId}/modules/{id}");
 
             app.MapPost("/{tenant}/api/v1/courses/{courseId}/modules", CreateModule)
                 .Validate<RouteHandlerBuilder, CreateModuleRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization("Instructor");
-            Routes.Add($"POST: /{{tenant}}/api/v1/courses/{{courseId}}/modules");
+                .RequireAuthorization();
+            Routes.Add("POST: /{tenant}/api/v1/courses/{courseId}/modules");
 
             app.MapPost("/{tenant}/api/v1/courses/{courseId}/modules/{id}", UpdateModule)
                 .Validate<RouteHandlerBuilder, UpdateModuleRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization("Instructor");
-            Routes.Add($"POST: /{{tenant}}/api/v1/courses/{{courseId}}/modules/{{id}}");
-
+                .RequireAuthorization();
+            Routes.Add("POST: /{tenant}/api/v1/courses/{courseId}/modules/{id}");
 
             app.MapDelete("/{tenant}/api/v1/courses/{courseId}/modules/{id}", DeleteModule)
-                .RequireAuthorization("Instructor");
-            Routes.Add($"DELETE: /{{tenant}}/api/v1/courses/{{courseId}}/modules/{{id}}");
+                .RequireAuthorization();
+            Routes.Add("DELETE: /{tenant}/api/v1/courses/{courseId}/modules/{id}");
         }
 
         /// <summary>
@@ -57,11 +55,24 @@ namespace Academy.Services.Api.Endpoints.Courses
             string tenant,
             long courseId,
             ApplicationDbContext db,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            int page = 1,
+            int pageSize = 20)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
-            bool isInstructor = user?.IsInRole("Instructor") ?? false;
-            long? userId = user?.GetUserId();
+            if (user == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "User is not authenticated.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            bool isInstructor = user.IsInRole($"{tenant}:Instructor");
+            long? userId = user.GetUserId();
 
             // Only show modules if user is instructor or enrolled
             bool hasAccess = isInstructor || (userId.HasValue && await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value));
@@ -72,17 +83,29 @@ namespace Academy.Services.Api.Endpoints.Courses
                     "Forbidden",
                     "You do not have access to this course.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
+            int totalCount = await db.CourseModules
+                .AsNoTracking()
+                .Where(m => m.CourseId == courseId)
+                .CountAsync();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
             List<ModuleResponse> modules = await db.CourseModules
+                .AsNoTracking()
                 .Where(m => m.CourseId == courseId)
                 .OrderBy(m => m.Order)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(m => new ModuleResponse(m.Id, m.CourseId, m.Title, m.Description, m.Order))
                 .ToListAsync();
 
-            return TypedResults.Ok(new ListModulesResponse(modules));
+            return TypedResults.Ok(new ListModulesResponse(modules, totalCount));
         }
 
         /// <summary>
@@ -96,8 +119,19 @@ namespace Academy.Services.Api.Endpoints.Courses
             IHttpContextAccessor httpContextAccessor)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
-            bool isInstructor = user?.IsInRole("Instructor") ?? false;
-            long? userId = user?.GetUserId();
+            if (user == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "User is not authenticated.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            bool isInstructor = user.IsInRole($"{tenant}:Instructor");
+            long? userId = user.GetUserId();
 
             bool hasAccess = isInstructor || (userId.HasValue && await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value));
             if (!hasAccess)
@@ -107,11 +141,12 @@ namespace Academy.Services.Api.Endpoints.Courses
                     "Forbidden",
                     "You do not have access to this course.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
             ModuleResponse? module = await db.CourseModules
+                .AsNoTracking()
                 .Where(m => m.CourseId == courseId && m.Id == id)
                 .Select(m => new ModuleResponse(m.Id, m.CourseId, m.Title, m.Description, m.Order))
                 .FirstOrDefaultAsync();
@@ -123,7 +158,7 @@ namespace Academy.Services.Api.Endpoints.Courses
                     "Not Found",
                     $"Module with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -140,14 +175,27 @@ namespace Academy.Services.Api.Endpoints.Courses
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to create modules.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             Shared.Data.Models.Courses.CourseModule module = new()
             {
                 CourseId = courseId,
                 Title = request.Title,
                 Description = request.Description,
                 Order = request.Order,
-                CreatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown",
-                UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown",
+                CreatedBy = user?.Identity?.Name ?? "Unknown",
+                UpdatedBy = user?.Identity?.Name ?? "Unknown",
                 TenantId = db.TenantId
             };
 
@@ -168,6 +216,19 @@ namespace Academy.Services.Api.Endpoints.Courses
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to update modules.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             if (id != request.Id || courseId != request.CourseId)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
@@ -175,7 +236,7 @@ namespace Academy.Services.Api.Endpoints.Courses
                     "Invalid Request",
                     "Route id and request id do not match.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -187,14 +248,14 @@ namespace Academy.Services.Api.Endpoints.Courses
                     "Not Found",
                     $"Module with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
             module.Title = request.Title;
             module.Description = request.Description;
             module.Order = request.Order;
-            module.UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
+            module.UpdatedBy = user?.Identity?.Name ?? "Unknown";
             module.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
@@ -212,6 +273,19 @@ namespace Academy.Services.Api.Endpoints.Courses
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to delete modules.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             Shared.Data.Models.Courses.CourseModule? module = await db.CourseModules.FirstOrDefaultAsync(m => m.Id == id && m.CourseId == courseId);
             if (module == null)
             {
@@ -220,12 +294,12 @@ namespace Academy.Services.Api.Endpoints.Courses
                     "Not Found",
                     $"Module with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
             module.IsDeleted = true;
-            module.UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
+            module.UpdatedBy = user?.Identity?.Name ?? "Unknown";
             module.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();

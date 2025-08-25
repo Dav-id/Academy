@@ -24,15 +24,15 @@ namespace Academy.Services.Api.Endpoints.Courses
         /// </summary>
         public static void AddEndpoints(this IEndpointRouteBuilder app)
         {
+            app.MapGet("/{tenant}/api/v1/courses/{courseId}/completions", GetCourseCompletions)
+                .RequireAuthorization();
+            Routes.Add("GET: /{tenant}/api/v1/courses/{courseId}/completions?page={page}&pageSize={pageSize}");
+
             app.MapPost("/{tenant}/api/v1/courses/{courseId}/complete", SubmitCompletion)
                 .Validate<RouteHandlerBuilder, SubmitCompletionRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add($"POST: /{{tenant}}/api/v1/courses/{{courseId}}/complete");
-
-            app.MapGet("/{tenant}/api/v1/courses/{courseId}/completions", GetCourseCompletions)
-                .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/courses/{{courseId}}/completions");
+            Routes.Add("POST: /{tenant}/api/v1/courses/{courseId}/complete");
         }
 
         /// <summary>
@@ -122,7 +122,9 @@ namespace Academy.Services.Api.Endpoints.Courses
             string tenant,
             long courseId,
             ApplicationDbContext db,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            int page = 1,
+            int pageSize = 20)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
             bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
@@ -137,14 +139,27 @@ namespace Academy.Services.Api.Endpoints.Courses
                 ));
             }
 
-            List<CompletionResponse> completions = await db.CourseCompletions
+            int totalCount = await db.CourseCompletions
+                .AsNoTracking()
                 .Where(c => c.CourseId == courseId)
+                .CountAsync();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
+            List<CompletionResponse> completions = await db.CourseCompletions
+                .AsNoTracking()
+                .Where(c => c.CourseId == courseId)
+                .OrderBy(c => c.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(c => new CompletionResponse(
                     c.Id, c.CourseId, c.UserProfileId, c.SubmittedOn,
                     c.IsPassed, c.FinalScore, c.Feedback))
                 .ToListAsync();
 
-            return TypedResults.Ok(new ListCompletionsResponse(completions));
+            return TypedResults.Ok(new ListCompletionsResponse(completions, totalCount));
         }
     }
 }

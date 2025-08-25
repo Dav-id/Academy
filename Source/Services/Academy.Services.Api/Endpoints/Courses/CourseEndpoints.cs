@@ -26,7 +26,7 @@ namespace Academy.Services.Api.Endpoints.Courses
         {
             app.MapGet("/{tenant}/api/v1/courses", GetCourses)
                 .RequireAuthorization();
-            Routes.Add("GET: /{tenant}/api/v1/courses");
+            Routes.Add("GET: /{tenant}/api/v1/courses?page={page}&pageSize={pageSize}");
 
             app.MapGet("/{tenant}/api/v1/courses/{id}", GetCourse)
                 .RequireAuthorization();
@@ -56,7 +56,9 @@ namespace Academy.Services.Api.Endpoints.Courses
         public static async Task<Results<Ok<ListCoursesResponse>, BadRequest<ErrorResponse>>> GetCourses(
             string tenant,
             ApplicationDbContext db,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            int page = 1,
+            int pageSize = 20)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
             if (user == null)
@@ -77,24 +79,33 @@ namespace Academy.Services.Api.Endpoints.Courses
 
             if (isInstructor)
             {
-                query = db.Courses;
+                query = db.Courses.AsNoTracking();
             }
             else if (userId.HasValue)
             {
                 query = db.Courses
+                    .AsNoTracking()
                     .Where(c => c.Enrollments.Any(e => e.UserProfileId == userId.Value));
             }
             else
             {
-                // No user id, return empty
-                return TypedResults.Ok(new ListCoursesResponse(new List<CourseResponse>()));
+                return TypedResults.Ok(new ListCoursesResponse([], 0));
             }
 
+            int totalCount = await query.CountAsync();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
             List<CourseResponse> courses = await query
+                .OrderBy(c => c.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(c => new CourseResponse(c.Id, c.Title, c.Description))
                 .ToListAsync();
 
-            return TypedResults.Ok(new ListCoursesResponse(courses));
+            return TypedResults.Ok(new ListCoursesResponse(courses, totalCount));
         }
 
         /// <summary>
@@ -122,7 +133,9 @@ namespace Academy.Services.Api.Endpoints.Courses
             bool isInstructor = user.IsInRole($"{tenant}:Instructor");
             long? userId = user.GetUserId();
 
-            IQueryable<Shared.Data.Models.Courses.Course> query = db.Courses.Where(c => c.Id == id);
+            IQueryable<Shared.Data.Models.Courses.Course> query = db.Courses
+                .AsNoTracking()
+                .Where(c => c.Id == id);
 
             if (!isInstructor)
             {

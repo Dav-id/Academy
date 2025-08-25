@@ -173,7 +173,7 @@ namespace Academy.Shared.Security.FusionAuth
                 //    { "roles",  }
                 //};
 
-                var updateResponse = await authClient.CreateApplicationRoleAsync(application.id, null, new()
+                io.fusionauth.ClientResponse<io.fusionauth.domain.api.ApplicationResponse> updateResponse = await authClient.CreateApplicationRoleAsync(application.id, null, new()
                 {
                     //application = application,
                     role = new()

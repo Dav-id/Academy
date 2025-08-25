@@ -9,6 +9,8 @@ import { Fieldset, Field, Label, ErrorMessage } from '../../components/fieldset'
 import { Text } from '../../components/text';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/table';
 
+import { useAuth } from '../../lib/auth/AuthContext';
+
 // Loader for React Router
 export async function loader({ params }: LoaderFunctionArgs) {
     const tenantUrlStub = params.tenantUrlStub as string;
@@ -24,6 +26,8 @@ export default function TenantDetailsPage() {
     const { tenantUrlStub } = useParams<{ tenantUrlStub: string }>();
     const navigate = useNavigate();
     const initialTenant = useLoaderData() as TenantResponse;
+
+    const { roles } = useAuth();
 
     const {
         data: tenant,
@@ -79,13 +83,26 @@ export default function TenantDetailsPage() {
 
     return (
         <div className="mx-auto">
-            <div className="flex w-full flex-wrap items-end justify-between gap-4">
-            <div>
-                <Heading>{ tenant.title }</Heading>
-                    <Subheading>{tenant.description || <em></em>}</Subheading>
+
+            <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-6">
+                    <div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <Heading>{tenant.title}</Heading>
+                        </div>
+                        <div className="text-sm/6 mt-2 text-zinc-500">
+                            {tenant.description || <em>No description</em>}
+                        </div>
+                    </div>
                 </div>
-                <Button href={`/`}>Back</Button>
+                <div className="flex gap-4">
+                    <Button outline href={`/`}>Back</Button>
+                    {roles.includes('Administrator') || roles.includes(tenant.urlStub + ':Administrator') ? (
+                        <Button href={`/${tenant.urlStub}/update`}>Update</Button>
+                    ) : null}
+                </div>
             </div>
+
             <Divider className="my-10 mt-6" soft />
 
             <Fieldset>
@@ -125,12 +142,20 @@ export default function TenantDetailsPage() {
                         </TableBody>
                     </Table>
                 )}
+
+                {roles.includes('Administrator') || roles.includes(tenant.urlStub + ':Instructor') ? (
+                    <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+                        <div className="flex gap-4">
+                            <Button href={`/${tenant.urlStub}/courses/create`}>New Course</Button>
+                        </div>
+                    </div>
+                ) : null}
             </Fieldset>
 
             <Divider className="my-10" soft />
 
             <Fieldset>
-                <Subheading>Users</Subheading>
+                <Subheading>Accounts</Subheading>
                 <Divider className="my-6" />
                 <Table>
                     <TableHead>
@@ -150,6 +175,13 @@ export default function TenantDetailsPage() {
                         ))}
                     </TableBody>
                 </Table>
+                {roles.includes('Administrator') || roles.includes(tenant.urlStub + ':Instructor') ? (
+                    <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+                        <div className="flex gap-4">
+                            <Button href={`/${tenant.urlStub}/accounts/invite`}>Add Account</Button>
+                        </div>
+                    </div>
+                ) : null}
             </Fieldset>
         </div>
     );

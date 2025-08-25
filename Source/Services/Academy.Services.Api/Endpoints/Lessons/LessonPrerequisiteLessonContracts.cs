@@ -28,7 +28,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// <summary>
         /// Response for a list of lesson prerequisite lessons.
         /// </summary>
-        public record ListLessonPrerequisiteLessonsResponse(IReadOnlyList<LessonPrerequisiteLessonResponse> Prerequisites);
+        public record ListLessonPrerequisiteLessonsResponse(IReadOnlyList<LessonPrerequisiteLessonResponse> Prerequisites, int TotalPrerequisiteCount);
     }
 
     /// <summary>

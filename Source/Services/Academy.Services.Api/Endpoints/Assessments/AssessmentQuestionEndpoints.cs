@@ -2,7 +2,6 @@ using Academy.Services.Api.Extensions;
 using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
 
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,27 +20,27 @@ namespace Academy.Services.Api.Endpoints.Assessments
         {
             app.MapGet("/{tenant}/api/v1/assessments/{assessmentId}/questions", GetAssessmentQuestions)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/assessments/{{assessmentId}}/questions");
+            Routes.Add("GET: /{tenant}/api/v1/assessments/{assessmentId}/questions?page={page}&pageSize={pageSize}");
 
             app.MapGet("/{tenant}/api/v1/assessments/{assessmentId}/questions/{id}", GetAssessmentQuestion)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/assessments/{{assessmentId}}/questions/{{id}}");
+            Routes.Add("GET: /{tenant}/api/v1/assessments/{assessmentId}/questions/{id}");
 
             app.MapPost("/{tenant}/api/v1/assessments/{assessmentId}/questions", CreateAssessmentQuestion)
                 .Validate<RouteHandlerBuilder, CreateAssessmentQuestionRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add($"POST: /{{tenant}}/api/v1/assessments/{{assessmentId}}/questions");
+            Routes.Add("POST: /{tenant}/api/v1/assessments/{assessmentId}/questions");
 
             app.MapPut("/{tenant}/api/v1/assessments/{assessmentId}/questions/{id}", UpdateAssessmentQuestion)
                 .Validate<RouteHandlerBuilder, UpdateAssessmentQuestionRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization(); 
-            Routes.Add($"PUT: /{{tenant}}/api/v1/assessments/{{assessmentId}}/questions/{{id}}");
+                .RequireAuthorization();
+            Routes.Add("PUT: /{tenant}/api/v1/assessments/{assessmentId}/questions/{id}");
 
             app.MapDelete("/{tenant}/api/v1/assessments/{assessmentId}/questions/{id}", DeleteAssessmentQuestion)
-                .RequireAuthorization(); 
-            Routes.Add($"DELETE: /{{tenant}}/api/v1/assessments/{{assessmentId}}/questions/{{id}}");
+                .RequireAuthorization();
+            Routes.Add("DELETE: /{tenant}/api/v1/assessments/{assessmentId}/questions/{id}");
         }
 
         /// <summary>
@@ -50,11 +49,63 @@ namespace Academy.Services.Api.Endpoints.Assessments
         private static async Task<Results<Ok<ListAssessmentQuestionsResponse>, BadRequest<ErrorResponse>>> GetAssessmentQuestions(
             string tenant,
             long assessmentId,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor,
+            int page = 1,
+            int pageSize = 20)
         {
-            List<AssessmentQuestionResponse> questions = await db.AssessmentQuestions
-                .Where(q => q.AssessmentId == assessmentId)
+            System.Security.Claims.ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "User is not authenticated.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            bool isInstructor = user.IsInRole($"{tenant}:Instructor");
+            long? userId = user.GetUserId();
+
+            IQueryable<Shared.Data.Models.Assessments.AssessmentQuestion> query = db.AssessmentQuestions
+                .AsNoTracking()
+                .Where(q => q.AssessmentId == assessmentId);
+
+            if (!isInstructor)
+            {
+                if (!userId.HasValue)
+                {
+                    return TypedResults.BadRequest(new ErrorResponse(
+                        StatusCodes.Status401Unauthorized,
+                        "Unauthorized",
+                        "User is not enrolled on this course.",
+                        null,
+                        httpContextAccessor?.HttpContext?.TraceIdentifier
+                    ));
+                }
+
+                // Only include assessments where the user is enrolled in the parent course
+                query = query
+                    .Where(a =>
+                        a.Assessment != null &&
+                        a.Assessment.CourseModule != null &&
+                        a.Assessment.CourseModule.Course != null &&
+                        a.Assessment.CourseModule.Course.Enrollments.Any(e => e.UserProfile != null && e.UserProfile.Id == userId.Value)
+                    );
+            }
+
+            int totalCount = await query.CountAsync();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
+            List<AssessmentQuestionResponse> questions = await query
                 .OrderBy(q => q.Order)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(q => new AssessmentQuestionResponse(
                     q.Id,
                     q.AssessmentId,
@@ -66,7 +117,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 ))
                 .ToListAsync();
 
-            return TypedResults.Ok(new ListAssessmentQuestionsResponse(questions));
+            return TypedResults.Ok(new ListAssessmentQuestionsResponse(questions, totalCount));
         }
 
         /// <summary>
@@ -79,8 +130,50 @@ namespace Academy.Services.Api.Endpoints.Assessments
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            AssessmentQuestionResponse? question = await db.AssessmentQuestions
-                .Where(q => q.AssessmentId == assessmentId && q.Id == id)
+            System.Security.Claims.ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "User is not authenticated.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            bool isInstructor = user.IsInRole($"{tenant}:Instructor");
+            long? userId = user.GetUserId();
+
+            IQueryable<Shared.Data.Models.Assessments.AssessmentQuestion> query = db.AssessmentQuestions
+                .AsNoTracking()
+                .Where(q => q.AssessmentId == assessmentId);
+
+            if (!isInstructor)
+            {
+                if (!userId.HasValue)
+                {
+                    return TypedResults.BadRequest(new ErrorResponse(
+                        StatusCodes.Status401Unauthorized,
+                        "Unauthorized",
+                        "User is not enrolled on this course.",
+                        null,
+                        httpContextAccessor?.HttpContext?.TraceIdentifier
+                    ));
+                }
+
+                // Only include assessments where the user is enrolled in the parent course
+                query = query
+                    .Where(a =>
+                        a.Assessment != null &&
+                        a.Assessment.CourseModule != null &&
+                        a.Assessment.CourseModule.Course != null &&
+                        a.Assessment.CourseModule.Course.Enrollments.Any(e => e.UserProfile != null && e.UserProfile.Id == userId.Value)
+                    );
+            }
+
+            AssessmentQuestionResponse? question = await query
+                .Where(q => q.Id == id)
                 .Select(q => new AssessmentQuestionResponse(
                     q.Id,
                     q.AssessmentId,
@@ -116,7 +209,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            var user = httpContextAccessor.HttpContext?.User;
+            System.Security.Claims.ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
             bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
             if (!isInstructor)
             {
@@ -167,7 +260,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            var user = httpContextAccessor.HttpContext?.User;
+            System.Security.Claims.ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
             bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
             if (!isInstructor)
             {
@@ -234,7 +327,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            var user = httpContextAccessor.HttpContext?.User;
+            System.Security.Claims.ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
             bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
             if (!isInstructor)
             {

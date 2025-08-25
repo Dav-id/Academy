@@ -24,7 +24,7 @@ namespace Academy.Services.Api.Endpoints.Assets.AddAsset
             .Validate<RouteHandlerBuilder, AddAssetRequest>()
             .DisableAntiforgery()
             .ProducesValidationProblem()
-            .RequireAuthorization(); // changed from .RequireAuthorization("Instructor")
+            .RequireAuthorization(); from .RequireAuthorization("Instructor")
 
             // Log mapped routes
             Routes.Add($"PUT: {path}");

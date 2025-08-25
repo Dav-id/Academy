@@ -1,4 +1,4 @@
-import { useParams, useNavigate, useLoaderData, LoaderFunctionArgs } from 'react-router-dom';
+﻿import { useParams, useNavigate, useLoaderData, LoaderFunctionArgs } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getCourse, CourseResponse } from '../../services/courses/courseService';
 import { Heading, Subheading } from '../../components/heading';
@@ -59,6 +59,25 @@ export default function CourseDetailsPage() {
 
     return (
         <div className="mx-auto">
+
+            <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-6">
+                    <div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <Heading>{course.title}</Heading>                            
+                        </div>
+                        <div className="text-sm/6 mt-2 text-zinc-500">
+                            {course.description || <em>No description</em>}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex gap-4">
+                    <Button outline>Edit</Button>
+                    <Button>View</Button>
+                </div>
+            </div>
+
+
             <div className="flex w-full flex-wrap items-end justify-between gap-4">
                 <Heading>Course Details</Heading>
                 <Button href={`/${tenantUrlStub}/courses`}>Back</Button>

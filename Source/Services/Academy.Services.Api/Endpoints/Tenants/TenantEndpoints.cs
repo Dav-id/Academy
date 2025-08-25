@@ -1,7 +1,6 @@
 using Academy.Services.Api.Extensions;
 using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
-using Academy.Shared.Data.Models.Accounts;
 using Academy.Shared.Security;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -56,7 +55,9 @@ namespace Academy.Services.Api.Endpoints.Tenants
         /// </summary>
         public static async Task<Results<Ok<ListTenantsResponse>, BadRequest<ErrorResponse>>> GetTenants(
             ApplicationDbContext db,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            int page = 1,
+            int pageSize = 20)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
             if (user == null)
@@ -85,13 +86,23 @@ namespace Academy.Services.Api.Endpoints.Tenants
             }
             else
             {
-                // No user id, return empty
-                return TypedResults.Ok(new ListTenantsResponse([]));
+                return TypedResults.Ok(new ListTenantsResponse([], 0));
             }
 
-            List<TenantResponse> tenantResponses = (await query.ToListAsync()).ConvertAll(t => new TenantResponse(t.Id, t.UrlStub, t.Title, t.Description))
-;
-            return TypedResults.Ok(new ListTenantsResponse(tenantResponses));
+            int totalCount = await query.CountAsync();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
+            List<TenantResponse> tenantResponses = (await query
+                .OrderBy(t => t.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync())
+                .ConvertAll(t => new TenantResponse(t.Id, t.UrlStub, t.Title, t.Description));
+
+            return TypedResults.Ok(new ListTenantsResponse(tenantResponses, totalCount));
         }
 
         /// <summary>
@@ -103,6 +114,7 @@ namespace Academy.Services.Api.Endpoints.Tenants
             IHttpContextAccessor httpContextAccessor)
         {
             TenantResponse? t = await db.Tenants
+                .AsNoTracking()
                 .Where(t => t.UrlStub == tenant && !t.IsDeleted)
                 .Select(t => new TenantResponse(t.Id, t.UrlStub, t.Title, t.Description))
                 .FirstOrDefaultAsync();
@@ -149,7 +161,7 @@ namespace Academy.Services.Api.Endpoints.Tenants
                 Shared.Security.Models.UserProfile? userProfile = await authClient.CreateUserAsync(
                     firstName: request.TenantAccountOwnerFirstName,
                     lastName: request.TenantAccountOwnerLastName,
-                    email: request.TenantAccountOwnerEmail                    
+                    email: request.TenantAccountOwnerEmail
                 );
 
                 if (userProfile == null)

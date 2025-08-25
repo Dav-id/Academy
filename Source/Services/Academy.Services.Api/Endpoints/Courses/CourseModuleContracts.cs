@@ -27,7 +27,7 @@ namespace Academy.Services.Api.Endpoints.Courses
         /// <summary>
         /// Response for a list of course modules.
         /// </summary>
-        public record ListModulesResponse(IReadOnlyList<ModuleResponse> Modules);
+        public record ListModulesResponse(IReadOnlyList<ModuleResponse> Modules, int TotalModuleCount);
     }
 
     /// <summary>

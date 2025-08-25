@@ -1,7 +1,6 @@
 using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
 
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,27 +23,27 @@ namespace Academy.Services.Api.Endpoints.Accounts
         {
             app.MapGet("/{tenant}/api/v1/users", GetUserProfiles)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/users");
+            Routes.Add("GET: /{tenant}/api/v1/users?page={page}&pageSize={pageSize}");
 
             app.MapGet("/{tenant}/api/v1/users/{id}", GetUserProfile)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/users/{{id}}");
+            Routes.Add("GET: /{tenant}/api/v1/users/{id}");
 
             app.MapPost("/{tenant}/api/v1/users", CreateUserProfile)
                 .Validate<RouteHandlerBuilder, CreateUserProfileRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization(); // was .RequireAuthorization("Instructor")
-            Routes.Add($"POST: /{{tenant}}/api/v1/users");
+            Routes.Add("POST: /{tenant}/api/v1/users");
 
             app.MapPost("/{tenant}/api/v1/users/{id}", UpdateUserProfile)
                 .Validate<RouteHandlerBuilder, UpdateUserProfileRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add($"POST: /{{tenant}}/api/v1/users/{{id}}");
+            Routes.Add("POST: /{tenant}/api/v1/users/{id}");
 
             app.MapDelete("/{tenant}/api/v1/users/{id}", DeleteUserProfile)
                 .RequireAuthorization(); // was .RequireAuthorization("Instructor")
-            Routes.Add($"DELETE: /{{tenant}}/api/v1/users/{{id}}");
+            Routes.Add("DELETE: /{tenant}/api/v1/users/{id}");
         }
 
         /// <summary>
@@ -55,13 +54,37 @@ namespace Academy.Services.Api.Endpoints.Accounts
         /// <returns>A list of user profiles.</returns>
         private static async Task<Results<Ok<ListUserProfilesResponse>, BadRequest<ErrorResponse>>> GetUserProfiles(
             string tenant,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            int page = 1,
+            int pageSize = 20)
         {
-            List<UserProfileResponse> users = await db.UserProfiles
-                .Select(u => new UserProfileResponse(u.Id, u.FirstName, u.LastName, u.Email, !u.IsDeleted))
-                .ToListAsync();
+            if (page < 1)
+            {
+                page = 1;
+            }
 
-            return TypedResults.Ok(new ListUserProfilesResponse(users));
+            if (pageSize < 1)
+            {
+                pageSize = 20;
+            }
+
+            if (pageSize > 100)
+            {
+                pageSize = 100;
+            }
+
+            int totalCount = await db.UserProfiles.AsNoTracking().CountAsync();
+
+            IQueryable<UserProfileResponse> query = db.UserProfiles
+                .AsNoTracking()
+                .OrderBy(x => x.LastName)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(u => new UserProfileResponse(u.Id, u.FirstName, u.LastName, u.Email, !u.IsDeleted));
+
+            List<UserProfileResponse> users = await query.ToListAsync();
+
+            return TypedResults.Ok(new ListUserProfilesResponse(users, totalCount));
         }
 
         /// <summary>
@@ -78,6 +101,7 @@ namespace Academy.Services.Api.Endpoints.Accounts
             IHttpContextAccessor httpContextAccessor)
         {
             UserProfileResponse? user = await db.UserProfiles
+                .AsNoTracking()
                 .Where(u => u.Id == id)
                 .Select(u => new UserProfileResponse(u.Id, u.FirstName, u.LastName, u.Email, !u.IsDeleted))
                 .FirstOrDefaultAsync();
@@ -109,7 +133,7 @@ namespace Academy.Services.Api.Endpoints.Accounts
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            var user = httpContextAccessor.HttpContext?.User;
+            System.Security.Claims.ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
             bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
             if (!isInstructor)
             {
@@ -230,7 +254,7 @@ namespace Academy.Services.Api.Endpoints.Accounts
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            var user = httpContextAccessor.HttpContext?.User;
+            System.Security.Claims.ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
             bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
             if (!isInstructor)
             {

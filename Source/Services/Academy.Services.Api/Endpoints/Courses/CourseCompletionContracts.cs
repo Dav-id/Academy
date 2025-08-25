@@ -28,7 +28,7 @@ namespace Academy.Services.Api.Endpoints.Courses
         /// <summary>
         /// Response for a list of course completions.
         /// </summary>
-        public record ListCompletionsResponse(IReadOnlyList<CompletionResponse> Completions);
+        public record ListCompletionsResponse(IReadOnlyList<CompletionResponse> Completions, int TotalCompletionCount);
     }
 
     /// <summary>

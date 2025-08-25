@@ -1,3 +1,4 @@
+using Academy.Services.Api.Extensions;
 using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
 
@@ -21,17 +22,17 @@ namespace Academy.Services.Api.Endpoints.Lessons
         {
             app.MapGet("/{tenant}/api/v1/lessons/{lessonId}/prerequisites", GetLessonPrerequisites)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/lessons/{{lessonId}}/prerequisites");
+            Routes.Add("GET: /{tenant}/api/v1/lessons/{lessonId}/prerequisites?page={page}&pageSize={pageSize}");
 
             app.MapPost("/{tenant}/api/v1/lessons/{lessonId}/prerequisites", CreateLessonPrerequisite)
                 .Validate<RouteHandlerBuilder, CreateLessonPrerequisiteLessonRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add($"POST: /{{tenant}}/api/v1/lessons/{{lessonId}}/prerequisites");
+            Routes.Add("POST: /{tenant}/api/v1/lessons/{lessonId}/prerequisites");
 
             app.MapDelete("/{tenant}/api/v1/lessons/{lessonId}/prerequisites/{prerequisiteLessonId}", DeleteLessonPrerequisite)
                 .RequireAuthorization();
-            Routes.Add($"DELETE: /{{tenant}}/api/v1/lessons/{{lessonId}}/prerequisites/{{prerequisiteLessonId}}");
+            Routes.Add("DELETE: /{tenant}/api/v1/lessons/{lessonId}/prerequisites/{prerequisiteLessonId}");
         }
 
         /// <summary>
@@ -40,14 +41,79 @@ namespace Academy.Services.Api.Endpoints.Lessons
         private static async Task<Results<Ok<ListLessonPrerequisiteLessonsResponse>, BadRequest<ErrorResponse>>> GetLessonPrerequisites(
             string tenant,
             long lessonId,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor,
+            int page = 1,
+            int pageSize = 20)
         {
-            List<LessonPrerequisiteLessonResponse> prerequisites = await db.LessonPrerequisiteLessons
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "User is not authenticated.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            bool isInstructor = user.IsInRole($"{tenant}:Instructor");
+            long? userId = user.GetUserId();
+
+            // Get the courseId for this lesson
+            Shared.Data.Models.Lessons.Lesson? lesson = await db.Lessons
+                .Include(l => l.CourseModule)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(l => l.Id == lessonId);
+
+            if (lesson == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status404NotFound,
+                    "Not Found",
+                    $"Lesson with Id {lessonId} not found.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            long? courseId = lesson.CourseModule?.CourseId;
+
+            bool hasAccess = isInstructor ||
+                (userId.HasValue && courseId.HasValue &&
+                 await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value));
+
+            if (!hasAccess)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You do not have access to this lesson's prerequisites.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            int totalCount = await db.LessonPrerequisiteLessons
+                .AsNoTracking()
                 .Where(p => p.LessonId == lessonId)
+                .CountAsync();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
+            List<LessonPrerequisiteLessonResponse> prerequisites = await db.LessonPrerequisiteLessons
+                .AsNoTracking()
+                .Where(p => p.LessonId == lessonId)
+                .OrderBy(p => p.PrerequisiteLessonId)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(p => new LessonPrerequisiteLessonResponse(p.LessonId, p.PrerequisiteLessonId ?? 0))
                 .ToListAsync();
 
-            return TypedResults.Ok(new ListLessonPrerequisiteLessonsResponse(prerequisites));
+            return TypedResults.Ok(new ListLessonPrerequisiteLessonsResponse(prerequisites, totalCount));
         }
 
         /// <summary>

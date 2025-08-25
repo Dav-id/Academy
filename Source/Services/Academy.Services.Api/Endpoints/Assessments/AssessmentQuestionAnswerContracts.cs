@@ -50,7 +50,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// <summary>
         /// Response for a list of assessment question answers.
         /// </summary>
-        public record ListAssessmentQuestionAnswersResponse(IReadOnlyList<AssessmentQuestionAnswerResponse> Answers);
+        public record ListAssessmentQuestionAnswersResponse(IReadOnlyList<AssessmentQuestionAnswerResponse> Answers, int TotalAnswerCount);
     }
 
     /// <summary>

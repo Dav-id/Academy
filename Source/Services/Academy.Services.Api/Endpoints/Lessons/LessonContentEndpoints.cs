@@ -1,8 +1,11 @@
+using Academy.Services.Api.Extensions;
 using Academy.Services.Api.Filters;
 using Academy.Shared.Data.Contexts;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+
+using System.Security.Claims;
 
 using static Academy.Services.Api.Endpoints.Lessons.LessonContentContracts;
 
@@ -16,31 +19,31 @@ namespace Academy.Services.Api.Endpoints.Lessons
         public static readonly List<string> Routes = [];
 
         public static void AddEndpoints(this IEndpointRouteBuilder app)
-        {            
+        {
             app.MapGet("/{tenant}/api/v1/lessons/{lessonId}/contents", GetLessonContents)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/lessons/{{lessonId}}/contents");
+            Routes.Add("GET: /{tenant}/api/v1/lessons/{lessonId}/contents?page={page}&pageSize={pageSize}");
 
             app.MapGet("/{tenant}/api/v1/lessons/{lessonId}/contents/{id}", GetLessonContent)
                 .RequireAuthorization();
-            Routes.Add($"GET: /{{tenant}}/api/v1/lessons/{{lessonId}}/contents/{{id}}");
+            Routes.Add("GET: /{tenant}/api/v1/lessons/{lessonId}/contents/{id}");
 
             app.MapPost("/{tenant}/api/v1/lessons/{lessonId}/contents", CreateLessonContent)
                 .Validate<RouteHandlerBuilder, CreateLessonContentRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization("Instructor");
-            Routes.Add($"POST: /{{tenant}}/api/v1/lessons/{{lessonId}}/contents");
+                .RequireAuthorization();
+            Routes.Add("POST: /{tenant}/api/v1/lessons/{lessonId}/contents");
 
             // Update uses POST as it expects the full entity in the body, not just the fields to update.
             app.MapPost("/{tenant}/api/v1/lessons/{lessonId}/contents/{id}", UpdateLessonContent)
                 .Validate<RouteHandlerBuilder, UpdateLessonContentRequest>()
                 .ProducesValidationProblem()
-                .RequireAuthorization("Instructor");
-            Routes.Add($"POST: /{{tenant}}/api/v1/lessons/{{lessonId}}/contents/{{id}}");
+                .RequireAuthorization();
+            Routes.Add("POST: /{tenant}/api/v1/lessons/{lessonId}/contents/{id}");
 
             app.MapDelete("/{tenant}/api/v1/lessons/{lessonId}/contents/{id}", DeleteLessonContent)
-                .RequireAuthorization("Instructor");
-            Routes.Add($"DELETE: /{{tenant}}/api/v1/lessons/{{lessonId}}/contents/{{id}}");
+                .RequireAuthorization();
+            Routes.Add("DELETE: /{tenant}/api/v1/lessons/{lessonId}/contents/{id}");
         }
 
         /// <summary>
@@ -49,14 +52,79 @@ namespace Academy.Services.Api.Endpoints.Lessons
         public static async Task<Results<Ok<ListLessonContentsResponse>, BadRequest<ErrorResponse>>> GetLessonContents(
             string tenant,
             long lessonId,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor,
+            int page = 1,
+            int pageSize = 20)
         {
-            List<LessonContentResponse> contents = await db.LessonContents
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "User is not authenticated.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            bool isInstructor = user.IsInRole($"{tenant}:Instructor");
+            long? userId = user.GetUserId();
+
+            // Get the courseId for this lesson
+            Shared.Data.Models.Lessons.Lesson? lesson = await db.Lessons
+                .Include(l => l.CourseModule)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(l => l.Id == lessonId);
+
+            if (lesson == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status404NotFound,
+                    "Not Found",
+                    $"Lesson with Id {lessonId} not found.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            long? courseId = lesson.CourseModule?.CourseId;
+
+            bool hasAccess = isInstructor ||
+                (userId.HasValue && courseId.HasValue &&
+                 await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value));
+
+            if (!hasAccess)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You do not have access to this lesson content.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            int totalCount = await db.LessonContents
+                .AsNoTracking()
                 .Where(c => c.LessonId == lessonId)
+                .CountAsync();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
+            List<LessonContentResponse> contents = await db.LessonContents
+                .AsNoTracking()
+                .Where(c => c.LessonId == lessonId)
+                .OrderBy(c => c.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(c => new LessonContentResponse(c.Id, c.LessonId, c.ContentType, c.ContentData))
                 .ToListAsync();
 
-            return TypedResults.Ok(new ListLessonContentsResponse(contents));
+            return TypedResults.Ok(new ListLessonContentsResponse(contents, totalCount));
         }
 
         /// <summary>
@@ -66,9 +134,60 @@ namespace Academy.Services.Api.Endpoints.Lessons
             string tenant,
             long lessonId,
             long id,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "User is not authenticated.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            bool isInstructor = user.IsInRole($"{tenant}:Instructor");
+            long? userId = user.GetUserId();
+
+            // Get the courseId for this lesson
+            Shared.Data.Models.Lessons.Lesson? lesson = await db.Lessons
+                .Include(l => l.CourseModule)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(l => l.Id == lessonId);
+
+            if (lesson == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status404NotFound,
+                    "Not Found",
+                    $"Lesson with Id {lessonId} not found.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            long? courseId = lesson.CourseModule?.CourseId;
+
+            bool hasAccess = isInstructor ||
+                (userId.HasValue && courseId.HasValue &&
+                 await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value));
+
+            if (!hasAccess)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You do not have access to this lesson content.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             LessonContentResponse? content = await db.LessonContents
+                .AsNoTracking()
                 .Where(c => c.LessonId == lessonId && c.Id == id)
                 .Select(c => new LessonContentResponse(c.Id, c.LessonId, c.ContentType, c.ContentData))
                 .FirstOrDefaultAsync();
@@ -80,7 +199,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
                     "Not Found",
                     $"Lesson content with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -97,13 +216,26 @@ namespace Academy.Services.Api.Endpoints.Lessons
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to create lesson content.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             Shared.Data.Models.Lessons.LessonContent content = new()
             {
                 LessonId = lessonId,
                 ContentType = request.ContentType,
                 ContentData = request.ContentData,
-                CreatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown",
-                UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown",
+                CreatedBy = user?.Identity?.Name ?? "Unknown",
+                UpdatedBy = user?.Identity?.Name ?? "Unknown",
                 TenantId = db.TenantId
             };
 
@@ -124,6 +256,19 @@ namespace Academy.Services.Api.Endpoints.Lessons
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to update lesson content.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             if (id != request.Id || lessonId != request.LessonId)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
@@ -131,7 +276,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
                     "Invalid Request",
                     "Route id and request id do not match.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
@@ -143,13 +288,13 @@ namespace Academy.Services.Api.Endpoints.Lessons
                     "Not Found",
                     $"Lesson content with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
             content.ContentType = request.ContentType;
             content.ContentData = request.ContentData;
-            content.UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
+            content.UpdatedBy = user?.Identity?.Name ?? "Unknown";
             content.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
@@ -167,6 +312,19 @@ namespace Academy.Services.Api.Endpoints.Lessons
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
+            ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+            bool isInstructor = user?.IsInRole($"{tenant}:Instructor") ?? false;
+            if (!isInstructor)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "You are not allowed to delete lesson content.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             Shared.Data.Models.Lessons.LessonContent? content = await db.LessonContents.FirstOrDefaultAsync(c => c.Id == id && c.LessonId == lessonId);
             if (content == null)
             {
@@ -175,12 +333,12 @@ namespace Academy.Services.Api.Endpoints.Lessons
                     "Not Found",
                     $"Lesson content with Id {id} not found.",
                     null,
-                    null
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
             content.IsDeleted = true;
-            content.UpdatedBy = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Unknown";
+            content.UpdatedBy = user?.Identity?.Name ?? "Unknown";
             content.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();

@@ -42,7 +42,7 @@ namespace Academy.Services.Api.Endpoints.Tenants
         /// <summary>
         /// Response for a list of tenants.
         /// </summary>
-        public record ListTenantsResponse(IReadOnlyList<TenantResponse> Tenants);
+        public record ListTenantsResponse(IReadOnlyList<TenantResponse> Tenants, int TotalTenantCount);
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using Academy.Services.Api.Endpoints;
 using Academy.Services.Api.Endpoints.Courses;
 using Academy.Shared.Data.Contexts;
+using Academy.Tests.Extensions;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -18,7 +19,8 @@ namespace Academy.Tests.Endpoints.Courses
                 .Options;
 
             ApplicationDbContext db = new(options);
-            db.Courses.Add(new Shared.Data.Models.Courses.Course { Id = 1, Title = "Course 1" });
+            db.Tenants.Add(new Shared.Data.Models.Tenants.Tenant { Id = 1, UrlStub = "tenant", Title = "Tenant", Description = "Desc", IsDeleted = false });
+            db.Courses.Add(new Shared.Data.Models.Courses.Course { Id = 1, Title = "Course 1", TenantId = 1 });
             db.UserProfiles.Add(new Shared.Data.Models.Accounts.UserProfile
             {
                 Id = 10,
@@ -26,14 +28,27 @@ namespace Academy.Tests.Endpoints.Courses
                 LastName = "Doe",
                 Email = "john@example.com",
                 IdentityProvider = "local",
-                IdentityProviderId = "john"
+                IdentityProviderId = "john",
+                TenantId = 1
+            });
+            db.UserProfiles.Add(new Shared.Data.Models.Accounts.UserProfile
+            {
+                Id = 20,
+                FirstName = "Jane",
+                LastName = "Doe",
+                Email = "jane@example.com",
+                IdentityProvider = "local",
+                IdentityProviderId = "jane",
+                TenantId = 1
             });
             db.CourseEnrollments.Add(new Shared.Data.Models.Courses.CourseEnrollment
             {
                 Id = 100,
                 CourseId = 1,
-                UserProfileId = 10
+                UserProfileId = 10,
+                TenantId = 1
             });
+            db.SetTenant(1);
             db.SaveChanges();
             return db;
         }
@@ -43,18 +58,8 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithEnrollments();
-            FakeHttpContextAccessor httpContextAccessor = new(userId: 20);
-            db.UserProfiles.Add(new Shared.Data.Models.Accounts.UserProfile
-            {
-                Id = 20,
-                FirstName = "Jane",
-                LastName = "Smith",
-                Email = "jane@example.com",
-                IdentityProvider = "local",
-                IdentityProviderId = "jane"
-            });
-            db.SaveChanges();
-            CourseEnrollmentContracts.EnrollRequest request = new(1);
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
+            CourseEnrollmentContracts.EnrollRequest request = new CourseEnrollmentContracts.EnrollRequest(1, 10);
 
             // Act
             Results<Ok<CourseEnrollmentContracts.EnrollmentResponse>, BadRequest<ErrorResponse>> result = await CourseEnrollmentEndpoints.EnrollInCourse("tenant", 1, request, db, httpContextAccessor);
@@ -63,7 +68,8 @@ namespace Academy.Tests.Endpoints.Courses
             Ok<CourseEnrollmentContracts.EnrollmentResponse>? okResult = result.Result as Ok<CourseEnrollmentContracts.EnrollmentResponse>;
             Assert.IsNotNull(okResult);
             Assert.AreEqual(1, okResult.Value?.CourseId);
-            Assert.AreEqual(20, okResult.Value?.UserProfileId);
+            Assert.AreEqual(10, okResult.Value?.UserProfileId);
+            Assert.AreEqual(100, okResult.Value?.Id);
         }
 
         [TestMethod]
@@ -71,8 +77,8 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithEnrollments();
-            FakeHttpContextAccessor httpContextAccessor = new(userId: 10);
-            CourseEnrollmentContracts.EnrollRequest request = new(1);
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor:true);
+            CourseEnrollmentContracts.EnrollRequest request = new CourseEnrollmentContracts.EnrollRequest(1, 10);
 
             // Act
             Results<Ok<CourseEnrollmentContracts.EnrollmentResponse>, BadRequest<ErrorResponse>> result = await CourseEnrollmentEndpoints.EnrollInCourse("tenant", 1, request, db, httpContextAccessor);
@@ -88,8 +94,8 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithEnrollments();
-            FakeHttpContextAccessor httpContextAccessor = new(userId: null);
-            CourseEnrollmentContracts.EnrollRequest request = new(1);
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(null);
+            CourseEnrollmentContracts.EnrollRequest request = new CourseEnrollmentContracts.EnrollRequest(1, 0);
 
             // Act
             Results<Ok<CourseEnrollmentContracts.EnrollmentResponse>, BadRequest<ErrorResponse>> result = await CourseEnrollmentEndpoints.EnrollInCourse("tenant", 1, request, db, httpContextAccessor);
@@ -97,7 +103,7 @@ namespace Academy.Tests.Endpoints.Courses
             // Assert
             BadRequest<ErrorResponse>? badRequest = result.Result as BadRequest<ErrorResponse>;
             Assert.IsNotNull(badRequest);
-            Assert.AreEqual(StatusCodes.Status401Unauthorized, badRequest.Value?.StatusCode);
+            Assert.AreEqual(StatusCodes.Status403Forbidden, badRequest.Value?.StatusCode);
         }
 
         [TestMethod]
@@ -105,15 +111,16 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithEnrollments();
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
 
             // Act
-            Results<Ok<List<CourseEnrollmentContracts.EnrollmentResponse>>, BadRequest<ErrorResponse>> result = await CourseEnrollmentEndpoints.GetCourseEnrollments("tenant", 1, db);
+            Results<Ok<CourseEnrollmentContracts.ListEnrollmentsResponse>, BadRequest<ErrorResponse>> result = await CourseEnrollmentEndpoints.GetCourseEnrollments("tenant", 1, db, httpContextAccessor);
 
             // Assert
-            Ok<List<CourseEnrollmentContracts.EnrollmentResponse>>? okResult = result.Result as Ok<System.Collections.Generic.List<CourseEnrollmentContracts.EnrollmentResponse>>;
+            Ok<CourseEnrollmentContracts.ListEnrollmentsResponse>? okResult = result.Result as Ok<CourseEnrollmentContracts.ListEnrollmentsResponse>;
             Assert.IsNotNull(okResult);
-            Assert.AreEqual(1, okResult.Value?.Count);
-            Assert.AreEqual(10, okResult.Value?[0].UserProfileId);
+            Assert.AreEqual(1, okResult.Value?.Enrollments.Count);
+            Assert.AreEqual(100, okResult.Value?.Enrollments[0].Id);
         }
 
         [TestMethod]
@@ -121,7 +128,7 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithEnrollments();
-            FakeHttpContextAccessor httpContextAccessor = new(userId: 10);
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(10, isInstructor: true);
 
             // Act
             Results<Ok, BadRequest<ErrorResponse>> result = await CourseEnrollmentEndpoints.UnenrollFromCourse("tenant", 1, db, httpContextAccessor);
@@ -137,7 +144,7 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithEnrollments();
-            FakeHttpContextAccessor httpContextAccessor = new(userId: 999);
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(999, isInstructor:true);
 
             // Act
             Results<Ok, BadRequest<ErrorResponse>> result = await CourseEnrollmentEndpoints.UnenrollFromCourse("tenant", 1, db, httpContextAccessor);
@@ -147,22 +154,6 @@ namespace Academy.Tests.Endpoints.Courses
             Assert.IsNotNull(badRequest);
             Assert.AreEqual(StatusCodes.Status404NotFound, badRequest.Value?.StatusCode);
         }
-
-        // Helper: Fake IHttpContextAccessor for user simulation
-        private class FakeHttpContextAccessor : IHttpContextAccessor
-        {
-            public HttpContext? HttpContext { get; set; }
-
-            public FakeHttpContextAccessor(long? userId)
-            {
-                System.Security.Claims.Claim[] claims = userId.HasValue
-                    ? [new System.Security.Claims.Claim("Id", userId.Value.ToString())]
-                    : [];
-                System.Security.Claims.ClaimsPrincipal user = new(
-                    new System.Security.Claims.ClaimsIdentity(claims, "TestAuth")
-                );
-                HttpContext = new DefaultHttpContext { User = user };
-            }
-        }
     }
+
 }

@@ -12,7 +12,7 @@ namespace Academy.Services.Api.Endpoints.Courses
         /// <summary>
         /// Request to enroll a user in a course.
         /// </summary>
-        public record EnrollRequest(long CourseId);
+        public record EnrollRequest(long CourseId, long UserProfileId);
 
         /// <summary>
         /// Response for a course enrollment.

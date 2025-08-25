@@ -66,7 +66,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             }
 
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
-            long? userId = user.GetUserId();
+            long? userId = user?.GetUserId();
 
             // Check question belongs to assessment
             Shared.Data.Models.Assessments.AssessmentQuestion? question = await db.AssessmentQuestions
@@ -144,7 +144,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             }
 
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
-            long? userId = user.GetUserId();
+            long? userId = user?.GetUserId();
 
             // Check question belongs to assessment
             Shared.Data.Models.Assessments.AssessmentQuestion? question = await db.AssessmentQuestions

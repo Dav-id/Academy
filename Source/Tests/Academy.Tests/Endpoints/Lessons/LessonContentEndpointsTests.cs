@@ -1,6 +1,7 @@
 using Academy.Services.Api.Endpoints;
 using Academy.Services.Api.Endpoints.Lessons;
 using Academy.Shared.Data.Contexts;
+using Academy.Tests.Extensions;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -37,9 +38,10 @@ namespace Academy.Tests.Endpoints.Lessons
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithLessonContent();
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
 
             // Act
-            Results<Ok<LessonContentContracts.ListLessonContentsResponse>, BadRequest<Services.Api.Endpoints.ErrorResponse>> result = await LessonContentEndpoints.GetLessonContents("tenant", 100, db);
+            Results<Ok<LessonContentContracts.ListLessonContentsResponse>, BadRequest<ErrorResponse>> result = await LessonContentEndpoints.GetLessonContents("tenant", 100, db, httpContextAccessor);
 
             // Assert
             Ok<LessonContentContracts.ListLessonContentsResponse>? okResult = result.Result as Ok<LessonContentContracts.ListLessonContentsResponse>;
@@ -52,9 +54,10 @@ namespace Academy.Tests.Endpoints.Lessons
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithLessonContent();
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
 
             // Act
-            Results<Ok<LessonContentContracts.LessonContentResponse>, BadRequest<Services.Api.Endpoints.ErrorResponse>> result = await LessonContentEndpoints.GetLessonContent("tenant", 100, 1000, db);
+            Results<Ok<LessonContentContracts.LessonContentResponse>, BadRequest<ErrorResponse>> result = await LessonContentEndpoints.GetLessonContent("tenant", 100, 1000, db, httpContextAccessor);
 
             // Assert
             Ok<LessonContentContracts.LessonContentResponse>? okResult = result.Result as Ok<LessonContentContracts.LessonContentResponse>;
@@ -67,9 +70,10 @@ namespace Academy.Tests.Endpoints.Lessons
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithLessonContent();
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
 
             // Act
-            Results<Ok<LessonContentContracts.LessonContentResponse>, BadRequest<Services.Api.Endpoints.ErrorResponse>> result = await LessonContentEndpoints.GetLessonContent("tenant", 100, 9999, db);
+            Results<Ok<LessonContentContracts.LessonContentResponse>, BadRequest<ErrorResponse>> result = await LessonContentEndpoints.GetLessonContent("tenant", 100, 9999, db, httpContextAccessor);
 
             // Assert
             BadRequest<ErrorResponse>? badRequest = result.Result as BadRequest<ErrorResponse>;
@@ -82,11 +86,11 @@ namespace Academy.Tests.Endpoints.Lessons
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithLessonContent();
-            LessonContentContracts.CreateLessonContentRequest request = new(100, "PDF", "Content 3");
-            FakeHttpContextAccessor httpContextAccessor = new("instructor", isInstructor: true);
+            LessonContentContracts.CreateLessonContentRequest request = new LessonContentContracts.CreateLessonContentRequest(100, "PDF", "Content 3");
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
 
             // Act
-            Results<Ok<LessonContentContracts.LessonContentResponse>, BadRequest<Services.Api.Endpoints.ErrorResponse>> result = await LessonContentEndpoints.CreateLessonContent("tenant", 100, request, db, httpContextAccessor);
+            Results<Ok<LessonContentContracts.LessonContentResponse>, BadRequest<ErrorResponse>> result = await LessonContentEndpoints.CreateLessonContent("tenant", 100, request, db, httpContextAccessor);
 
             // Assert
             Ok<LessonContentContracts.LessonContentResponse>? okResult = result.Result as Ok<LessonContentContracts.LessonContentResponse>;
@@ -100,11 +104,11 @@ namespace Academy.Tests.Endpoints.Lessons
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithLessonContent();
-            LessonContentContracts.UpdateLessonContentRequest request = new(1000, 100, "Text", "Updated Content");
-            FakeHttpContextAccessor httpContextAccessor = new("instructor", isInstructor: true);
+            LessonContentContracts.UpdateLessonContentRequest request = new LessonContentContracts.UpdateLessonContentRequest(1000, 100, "Text", "Updated Content");
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
 
             // Act
-            Results<Ok<LessonContentContracts.LessonContentResponse>, BadRequest<Services.Api.Endpoints.ErrorResponse>> result = await LessonContentEndpoints.UpdateLessonContent("tenant", 100, 1000, request, db, httpContextAccessor);
+            Results<Ok<LessonContentContracts.LessonContentResponse>, BadRequest<ErrorResponse>> result = await LessonContentEndpoints.UpdateLessonContent("tenant", 100, 1000, request, db, httpContextAccessor);
 
             // Assert
             Ok<LessonContentContracts.LessonContentResponse>? okResult = result.Result as Ok<LessonContentContracts.LessonContentResponse>;
@@ -117,38 +121,15 @@ namespace Academy.Tests.Endpoints.Lessons
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithLessonContent();
-            FakeHttpContextAccessor httpContextAccessor = new("instructor", isInstructor: true);
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
 
             // Act
-            Results<Ok, BadRequest<Services.Api.Endpoints.ErrorResponse>> result = await LessonContentEndpoints.DeleteLessonContent("tenant", 100, 1000, db, httpContextAccessor);
+            Results<Ok, BadRequest<ErrorResponse>> result = await LessonContentEndpoints.DeleteLessonContent("tenant", 100, 1000, db, httpContextAccessor);
 
             // Assert
             Ok? okResult = result.Result as Ok;
             Assert.IsNotNull(okResult);
             Assert.AreEqual(1, db.LessonContents.Count());
         }
-
-        private class FakeHttpContextAccessor : IHttpContextAccessor
-        {
-            public HttpContext? HttpContext { get; set; }
-
-            public FakeHttpContextAccessor(string? userName, bool isInstructor = false)
-            {
-                List<System.Security.Claims.Claim> claims = [];
-                if (!string.IsNullOrEmpty(userName))
-                {
-                    claims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, userName));
-                }
-                if (isInstructor)
-                {
-                    claims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Instructor"));
-                }
-
-                System.Security.Claims.ClaimsPrincipal user = new(
-                    new System.Security.Claims.ClaimsIdentity(claims, "TestAuth")
-                );
-                HttpContext = new DefaultHttpContext { User = user };
-            }
-        }
-    }
+    }       
 }

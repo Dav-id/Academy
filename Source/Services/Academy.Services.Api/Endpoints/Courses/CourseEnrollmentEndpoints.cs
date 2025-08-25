@@ -76,7 +76,7 @@ namespace Academy.Services.Api.Endpoints.Courses
 
             // Check if already enrolled
             Shared.Data.Models.Courses.CourseEnrollment? existing = await db.CourseEnrollments
-                .FirstOrDefaultAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value);
+                .FirstOrDefaultAsync(e => e.CourseId == courseId && e.UserProfileId == request.UserProfileId);
 
             if (existing != null)
             {
@@ -181,7 +181,7 @@ namespace Academy.Services.Api.Endpoints.Courses
             }
 
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
-            long? userId = user.GetUserId();
+            long? userId = user?.GetUserId();
 
             IQueryable<Shared.Data.Models.Courses.CourseEnrollment> query;
 

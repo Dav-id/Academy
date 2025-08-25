@@ -1,6 +1,7 @@
 using Academy.Services.Api.Endpoints;
 using Academy.Services.Api.Endpoints.Courses;
 using Academy.Shared.Data.Contexts;
+using Academy.Tests.Extensions;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -64,8 +65,6 @@ namespace Academy.Tests.Endpoints.Courses
 
             db.Courses.Add(c);
 
-
-
             db.SaveChanges();
 
             return db;
@@ -76,9 +75,7 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithModules();
-
-            
-            FakeHttpContextAccessor httpContextAccessor = new(1, isInstructor: true);
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
 
             // Act
             Results<Ok<CourseModuleContracts.ListModulesResponse>, BadRequest<ErrorResponse>> result = await CourseModuleEndpoints.GetModules("tenant", 1, db, httpContextAccessor);
@@ -94,8 +91,7 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithModules();
-
-            FakeHttpContextAccessor httpContextAccessor = new(1, isInstructor: true);
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
 
             // Act
             Results<Ok<CourseModuleContracts.ModuleResponse>, BadRequest<ErrorResponse>> result = await CourseModuleEndpoints.GetModule("tenant", 1, 101, db, httpContextAccessor);
@@ -111,8 +107,7 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithModules();
-
-            FakeHttpContextAccessor httpContextAccessor = new(1, isInstructor: true);
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
 
             // Act
             Results<Ok<CourseModuleContracts.ModuleResponse>, BadRequest<ErrorResponse>> result = await CourseModuleEndpoints.GetModule("tenant", 1, 999, db, httpContextAccessor);
@@ -133,11 +128,10 @@ namespace Academy.Tests.Endpoints.Courses
             ApplicationDbContext db = new(options);
             db.Tenants.Add(new Shared.Data.Models.Tenants.Tenant { Id = 1, UrlStub = "tenant", Title = "Tenant 1", Description = "Desc 1", IsDeleted = false });
             db.Courses.Add(new Shared.Data.Models.Courses.Course { Id = 1, Title = "Course 1", TenantId = 1 });
+            db.SetTenant(1);
             db.SaveChanges();
-            CourseModuleContracts.CreateModuleRequest request = new(1, "New Module", "A new module", 3);
-
-            Guid userId = Guid.Parse("36947696-2fd9-45c0-b408-eb4249e13eb8");
-            FakeHttpContextAccessor httpContextAccessor = new(1, isInstructor: true);
+            CourseModuleContracts.CreateModuleRequest request = new CourseModuleContracts.CreateModuleRequest(1, "New Module", "A new module", 3);
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
 
             // Act
             Results<Ok<CourseModuleContracts.ModuleResponse>, BadRequest<ErrorResponse>> result = await CourseModuleEndpoints.CreateModule("tenant", 1, request, db, httpContextAccessor);
@@ -155,9 +149,8 @@ namespace Academy.Tests.Endpoints.Courses
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithModules();
-            CourseModuleContracts.UpdateModuleRequest request = new(101, 1, "Updated Module", "Updated Desc", 5);
-
-            FakeHttpContextAccessor httpContextAccessor = new(1, isInstructor: true);
+            CourseModuleContracts.UpdateModuleRequest request = new CourseModuleContracts.UpdateModuleRequest(101, 1, "Updated Module", "Updated Desc", 5);
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
 
             // Act
             Results<Ok<CourseModuleContracts.ModuleResponse>, BadRequest<ErrorResponse>> result = await CourseModuleEndpoints.UpdateModule("tenant", 1, 101, request, db, httpContextAccessor);
@@ -170,11 +163,11 @@ namespace Academy.Tests.Endpoints.Courses
         }
 
         [TestMethod]
-        public async Task DeleteCourseModule_RemovesModule()
+        public async Task DeleteCourseModule_SoftDeletesModule()
         {
             // Arrange
             ApplicationDbContext db = GetDbContextWithModules();
-            FakeHttpContextAccessor httpContextAccessor = new(1, isInstructor: true);
+            IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(1, isInstructor: true);
 
             // Act
             Results<Ok, BadRequest<ErrorResponse>> result = await CourseModuleEndpoints.DeleteModule("tenant", 1, 101, db, httpContextAccessor);
@@ -182,32 +175,8 @@ namespace Academy.Tests.Endpoints.Courses
             // Assert
             Ok? okResult = result.Result as Ok;
             Assert.IsNotNull(okResult);
-            Assert.IsFalse(db.CourseModules.Any(m => m.Id == 101));
-        }
-
-        private class FakeHttpContextAccessor : IHttpContextAccessor
-        {
-            public HttpContext? HttpContext { get; set; }
-
-            public FakeHttpContextAccessor(long? userId, bool isInstructor = false)
-            {
-                List<System.Security.Claims.Claim> claims = userId.HasValue
-                    ? [new(ClaimTypes.NameIdentifier, userId.Value.ToString())]
-                    : [];
-
-                if (isInstructor)
-                {
-                    claims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Instructor"));
-                }
-
-                System.Security.Claims.ClaimsPrincipal user = new(
-                    new System.Security.Claims.ClaimsIdentity(
-                        claims,
-                        "TestAuth"
-                    )
-                );
-                HttpContext = new DefaultHttpContext { User = user };
-            }
+            Shared.Data.Models.Courses.CourseModule? module = await db.CourseModules.FirstOrDefaultAsync(m => m.Id == 101);
+            Assert.IsNull(module);
         }
     }
 }

@@ -59,7 +59,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
             }
 
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
-            long? userId = user.GetUserId();
+            long? userId = user?.GetUserId();
 
             // Get the courseId for this lesson
             Shared.Data.Models.Lessons.Lesson? lesson = await db.Lessons

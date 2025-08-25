@@ -72,7 +72,7 @@ namespace Academy.Services.Api.Endpoints.Courses
             }
 
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
-            long? userId = user.GetUserId();
+            long? userId = user?.GetUserId();
 
             // Only show modules if user is instructor or enrolled
             bool hasAccess = isInstructor || (userId.HasValue && await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value));
@@ -131,7 +131,7 @@ namespace Academy.Services.Api.Endpoints.Courses
             }
 
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
-            long? userId = user.GetUserId();
+            long? userId = user?.GetUserId();
 
             bool hasAccess = isInstructor || (userId.HasValue && await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value));
             if (!hasAccess)

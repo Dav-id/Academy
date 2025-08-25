@@ -1,4 +1,4 @@
-import api, { ErrorResponse } from '../lib/axios/axios';
+import api, { ErrorResponse } from '../../lib/axios/axios';
 
 // Request/response types based on CourseEnrollmentContracts.cs
 export interface EnrollRequest {

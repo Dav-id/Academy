@@ -1,14 +1,14 @@
 import api, { ErrorResponse } from '../../lib/axios/axios';
 
 // Request/response types based on CourseModuleContracts.cs
-export interface CreateModuleRequest {
+export interface CreateCourseModuleRequest {
     courseId: number;
     title: string;
     description: string;
     order: number;
 }
 
-export interface UpdateModuleRequest {
+export interface UpdateCourseModuleRequest {
     id: number;
     courseId: number;
     title: string;
@@ -16,7 +16,7 @@ export interface UpdateModuleRequest {
     order: number;
 }
 
-export interface ModuleResponse {
+export interface CourseModuleResponse {
     id: number;
     courseId: number;
     title: string;
@@ -24,18 +24,21 @@ export interface ModuleResponse {
     order: number;
 }
 
-export interface ListModulesResponse {
-    modules: ModuleResponse[];
+export interface ListCourseModulesResponse {
+    modules: CourseModuleResponse[];
+    totalCount?: number;
 }
 
-// Fetch all modules for a course
-export const getModules = async (
+// Fetch all modules for a course (with optional pagination)
+export const getCourseModules = async (
     tenant: string,
-    courseId: number
-): Promise<ListModulesResponse> => {
-    try {
-        const response = await api.get<ListModulesResponse>(
-            `/${encodeURIComponent(tenant)}/api/v1/courses/${courseId}/modules`
+    courseId: number,
+    page: number = 1,
+    pageSize: number = 10
+): Promise<ListCourseModulesResponse> => {
+    try {        
+        const response = await api.get<ListCourseModulesResponse>(
+            `/${encodeURIComponent(tenant)}/api/v1/courses/${courseId}/modules?page=${page}&pageSize=${pageSize}`
         );
         return response.data;
     } catch (error: any) {
@@ -51,13 +54,13 @@ export const getModules = async (
 };
 
 // Fetch a single module by ID
-export const getModule = async (
+export const getCourseModule = async (
     tenant: string,
     courseId: number,
     id: number
-): Promise<ModuleResponse> => {
+): Promise<CourseModuleResponse> => {
     try {
-        const response = await api.get<ModuleResponse>(
+        const response = await api.get<CourseModuleResponse>(
             `/${encodeURIComponent(tenant)}/api/v1/courses/${courseId}/modules/${id}`
         );
         return response.data;
@@ -77,10 +80,10 @@ export const getModule = async (
 export const createModule = async (
     tenant: string,
     courseId: number,
-    request: CreateModuleRequest
-): Promise<ModuleResponse> => {
+    request: CreateCourseModuleRequest
+): Promise<CourseModuleResponse> => {
     try {
-        const response = await api.post<ModuleResponse>(
+        const response = await api.post<CourseModuleResponse>(
             `/${encodeURIComponent(tenant)}/api/v1/courses/${courseId}/modules`,
             request
         );
@@ -102,10 +105,10 @@ export const updateModule = async (
     tenant: string,
     courseId: number,
     id: number,
-    request: UpdateModuleRequest
-): Promise<ModuleResponse> => {
+    request: UpdateCourseModuleRequest
+): Promise<CourseModuleResponse> => {
     try {
-        const response = await api.post<ModuleResponse>(
+        const response = await api.post<CourseModuleResponse>(
             `/${encodeURIComponent(tenant)}/api/v1/courses/${courseId}/modules/${id}`,
             request
         );

@@ -66,7 +66,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             }
 
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
-            long? userId = user.GetUserId();
+            long? userId = user?.GetUserId();
 
             IQueryable<Shared.Data.Models.Assessments.Assessment> query = db.Assessments.AsNoTracking();
 
@@ -130,7 +130,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             }
 
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
-            long? userId = user.GetUserId();
+            long? userId = user?.GetUserId();
 
             IQueryable<Shared.Data.Models.Assessments.Assessment> query = db.Assessments.AsNoTracking();
 

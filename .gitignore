@@ -417,3 +417,4 @@ FodyWeavers.xsd
 *.msm
 *.msp
 /Source/Clients/Academy.Clients.Web/public/conf.js
+.DS_Store

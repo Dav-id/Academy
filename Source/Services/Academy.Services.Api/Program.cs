@@ -229,9 +229,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // Require authentication by default
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("Administrator", p => p.RequireRole("Administrator"));
-    options.AddPolicy("Instructor", p => p.RequireAssertion(ctx => ctx.User.IsInRole("Administrator") || ctx.User.IsInRole("Instructor")));
-    options.AddPolicy("Student", p => p.RequireAssertion(ctx => ctx.User.IsInRole("Administrator") || ctx.User.IsInRole("Instructor") || ctx.User.IsInRole("Learner")));
+    // options.AddPolicy("Administrator", p => p.RequireRole("Administrator"));
+    // options.AddPolicy("Instructor", p => p.RequireAssertion(ctx => ctx.User.IsInRole("Administrator") || ctx.User.IsInRole("Instructor")));
+    // options.AddPolicy("Student", p => p.RequireAssertion(ctx => ctx.User.IsInRole("Administrator") || ctx.User.IsInRole("Instructor") || ctx.User.IsInRole("Learner")));
 
     options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
                                 .RequireAuthenticatedUser()

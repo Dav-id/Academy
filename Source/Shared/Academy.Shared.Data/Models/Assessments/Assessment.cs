@@ -26,7 +26,7 @@ namespace Academy.Shared.Data.Models.Assessments
         public double?                                      TargetScore         { get; set; } = null;
         public double?                                      PassingScore        { get; set; } = 0.6d; // Default to 60% passing score
 
-        public ICollection<AssessmentQuestion>              Questions           { get; set; } = [];
+        public ICollection<AssessmentSectionQuestion>       Questions           { get; set; } = [];
 
         public ICollection<LessonPrerequisiteAssessment>    RequiredBy          { get; set; } = [];
     }

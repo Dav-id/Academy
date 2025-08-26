@@ -7,15 +7,15 @@ namespace Academy.Services.Api.Endpoints.Assessments
     /// <summary>
     /// Contracts for assessment question endpoints.
     /// </summary>
-    public static class AssessmentQuestionContracts
+    public static class AssessmentSectionQuestionContracts
     {
         /// <summary>
         /// Request to create an assessment question.
         /// </summary>
-        public record CreateAssessmentQuestionRequest(
+        public record CreateAssessmentSectionQuestionRequest(
             long AssessmentId,
             string QuestionText,
-            QuizQuestionType QuestionType,
+            AssessmentQuestionType QuestionType,
             int Order,
             int? MinimumOptionChoiceSelections,
             int? MaximumOptionChoiceSelections
@@ -24,11 +24,11 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// <summary>
         /// Request to update an assessment question.
         /// </summary>
-        public record UpdateAssessmentQuestionRequest(
+        public record UpdateAssessmentSectionQuestionRequest(
             long Id,
             long AssessmentId,
             string QuestionText,
-            QuizQuestionType QuestionType,
+            AssessmentQuestionType QuestionType,
             int Order,
             int? MinimumOptionChoiceSelections,
             int? MaximumOptionChoiceSelections
@@ -37,11 +37,11 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// <summary>
         /// Response for an assessment question.
         /// </summary>
-        public record AssessmentQuestionResponse(
+        public record AssessmentSectionQuestionResponse(
             long Id,
             long AssessmentId,
             string QuestionText,
-            QuizQuestionType QuestionType,
+            AssessmentQuestionType QuestionType,
             int Order,
             int? MinimumOptionChoiceSelections,
             int? MaximumOptionChoiceSelections
@@ -50,15 +50,15 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// <summary>
         /// Response for a list of assessment questions.
         /// </summary>
-        public record ListAssessmentQuestionsResponse(IReadOnlyList<AssessmentQuestionResponse> Questions, int TotalQuestionCount);
+        public record ListAssessmentSectionQuestionsResponse(IReadOnlyList<AssessmentSectionQuestionResponse> Questions, int TotalQuestionCount);
     }
 
     /// <summary>
-    /// Validator for <see cref="AssessmentQuestionContracts.CreateAssessmentQuestionRequest"/>.
+    /// Validator for <see cref="AssessmentSectionQuestionContracts.CreateAssessmentSectionQuestionRequest"/>.
     /// </summary>
-    public sealed class CreateAssessmentQuestionValidator : AbstractValidator<AssessmentQuestionContracts.CreateAssessmentQuestionRequest>
+    public sealed class CreateAssessmentSectionQuestionValidator : AbstractValidator<AssessmentSectionQuestionContracts.CreateAssessmentSectionQuestionRequest>
     {
-        public CreateAssessmentQuestionValidator()
+        public CreateAssessmentSectionQuestionValidator()
         {
             RuleFor(x => x.AssessmentId).GreaterThan(0).WithMessage(_ => ModelTranslation.Global__Field__Required);
             RuleFor(x => x.QuestionText).NotEmpty().MaximumLength(1000);
@@ -70,11 +70,11 @@ namespace Academy.Services.Api.Endpoints.Assessments
     }
 
     /// <summary>
-    /// Validator for <see cref="AssessmentQuestionContracts.UpdateAssessmentQuestionRequest"/>.
+    /// Validator for <see cref="AssessmentSectionQuestionContracts.UpdateAssessmentSectionQuestionRequest"/>.
     /// </summary>
-    public sealed class UpdateAssessmentQuestionValidator : AbstractValidator<AssessmentQuestionContracts.UpdateAssessmentQuestionRequest>
+    public sealed class UpdateAssessmentSectionQuestionValidator : AbstractValidator<AssessmentSectionQuestionContracts.UpdateAssessmentSectionQuestionRequest>
     {
-        public UpdateAssessmentQuestionValidator()
+        public UpdateAssessmentSectionQuestionValidator()
         {
             RuleFor(x => x.Id).GreaterThan(0);
             RuleFor(x => x.AssessmentId).GreaterThan(0).WithMessage(_ => ModelTranslation.Global__Field__Required);
@@ -89,12 +89,14 @@ namespace Academy.Services.Api.Endpoints.Assessments
     /// <summary>
     /// Enum for quiz question types.
     /// </summary>
-    public enum QuizQuestionType
+    public enum AssessmentQuestionType
     {
         SingleChoice = 0,
         MultipleChoice = 1,
-        TrueFalse = 2,
+        Boolean = 2,
         ShortAnswer = 3,
-        LongAnswer = 4
+        LongAnswer = 4,
+        IntegerAnswer = 5,
+        DecimalAnswer = 6
     }
 }

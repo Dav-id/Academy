@@ -41,13 +41,15 @@ namespace Academy.Shared.Data.Contexts
             // Assessments
             modelBuilder.Entity<Assessment>()
                         .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
-            modelBuilder.Entity<AssessmentQuestion>()
+            modelBuilder.Entity<AssessmentSection>()
                         .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
-            modelBuilder.Entity<AssessmentQuestionAnswer>()
+            modelBuilder.Entity<AssessmentSectionQuestion>()
                         .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
-            modelBuilder.Entity<AssessmentQuestionAnswerOption>()
+            modelBuilder.Entity<AssessmentSectionQuestionAnswer>()
                         .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
-            modelBuilder.Entity<AssessmentQuestionOption>()
+            modelBuilder.Entity<AssessmentSectionQuestionAnswerOption>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+            modelBuilder.Entity<AssessmentSectionQuestionOption>()
                         .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
 
             //Courses
@@ -63,9 +65,11 @@ namespace Academy.Shared.Data.Contexts
             //Lessons
             modelBuilder.Entity<Lesson>()
                         .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
+            modelBuilder.Entity<LessonSection>()
+                        .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
             modelBuilder.Entity<LessonCompletion>()
                         .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
-            modelBuilder.Entity<LessonContent>()
+            modelBuilder.Entity<LessonSectionContent>()
                         .HasQueryFilter(c => !c.IsDeleted && c.TenantId == TenantId);
 
             // Composite keys for prerequisite relationships
@@ -101,32 +105,34 @@ namespace Academy.Shared.Data.Contexts
         }
 
         // Accounts
-        public DbSet<UserProfile>                       UserProfiles                        { get; set; }
+        public DbSet<UserProfile>                               UserProfiles                                { get; set; }
 
         // Assessments
-        public DbSet<Assessment>                        Assessments                         { get; set; }
-        public DbSet<AssessmentQuestion>                AssessmentQuestions                 { get; set; }
-        public DbSet<AssessmentQuestionAnswer>          AssessmentQuestionAnswers           { get; set; }
-        public DbSet<AssessmentQuestionAnswerOption>    AssessmentQuestionAnswerOptions     { get; set; }
-        public DbSet<AssessmentQuestionOption>          AssessmentQuestionOptions           { get; set; }
+        public DbSet<Assessment>                                Assessments                                 { get; set; }
+        public DbSet<AssessmentSectionQuestion>                 AssessmentSections                          { get; set; }
+        public DbSet<AssessmentSectionQuestion>                 AssessmentSectionQuestions                  { get; set; }
+        public DbSet<AssessmentSectionQuestionAnswer>           AssessmentSectionQuestionAnswers            { get; set; }
+        public DbSet<AssessmentSectionQuestionAnswerOption>     AssessmentSectionQuestionAnswerOptions      { get; set; }
+        public DbSet<AssessmentSectionQuestionOption>           AssessmentSectionQuestionOptions            { get; set; }
 
         // Courses
-        public DbSet<Course>                            Courses                             { get; set; }
-        public DbSet<CourseCompletion>                  CourseCompletions                   { get; set; }
-        public DbSet<CourseEnrollment>                  CourseEnrollments                   { get; set; }
-        public DbSet<CourseModule>                      CourseModules                       { get; set; }
+        public DbSet<Course>                                    Courses                                     { get; set; }
+        public DbSet<CourseCompletion>                          CourseCompletions                           { get; set; }
+        public DbSet<CourseEnrollment>                          CourseEnrollments                           { get; set; }
+        public DbSet<CourseModule>                              CourseModules                               { get; set; }
 
         // Lessons
-        public DbSet<Lesson>                            Lessons                             { get; set; }
-        public DbSet<LessonCompletion>                  LessonCompletions                   { get; set; }
-        public DbSet<LessonContent>                     LessonContents                      { get; set; }
-        public DbSet<LessonPrerequisiteAssessment>      LessonPrerequisiteAssessments       { get; set; }
-        public DbSet<LessonPrerequisiteLesson>          LessonPrerequisiteLessons           { get; set; }
+        public DbSet<Lesson>                                    Lessons                                     { get; set; }
+        public DbSet<LessonCompletion>                          LessonCompletions                           { get; set; }
+        public DbSet<LessonSection>                             LessonSections                              { get; set; }
+        public DbSet<LessonSectionContent>                      LessonSectionContents                       { get; set; }
+        public DbSet<LessonPrerequisiteAssessment>              LessonPrerequisiteAssessments               { get; set; }
+        public DbSet<LessonPrerequisiteLesson>                  LessonPrerequisiteLessons                   { get; set; }
 
         // Roles
-        public DbSet<ExternalRoleMapping>               ExternalRoleMappings                { get; set; }
+        public DbSet<ExternalRoleMapping>                       ExternalRoleMappings                        { get; set; }
 
         // Tenants
-        public DbSet<Tenant>                            Tenants                             { get; set; }
+        public DbSet<Tenant>                                    Tenants                                     { get; set; }
     }
 }

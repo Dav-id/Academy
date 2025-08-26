@@ -7,14 +7,14 @@ using Microsoft.EntityFrameworkCore;
 
 using System.Security.Claims;
 
-using static Academy.Services.Api.Endpoints.Assessments.AssessmentQuestionAnswerContracts;
+using static Academy.Services.Api.Endpoints.Assessments.AssessmentSectionQuestionAnswerContracts;
 
 namespace Academy.Services.Api.Endpoints.Assessments
 {
     /// <summary>
     /// Provides API endpoints for managing assessment question answers.
     /// </summary>
-    public static class AssessmentQuestionAnswerEndpoints
+    public static class AssessmentSectionQuestionAnswerEndpoints
     {
         public static readonly List<string> Routes = [];
 
@@ -29,13 +29,13 @@ namespace Academy.Services.Api.Endpoints.Assessments
             Routes.Add("GET: /{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers/{id}");
 
             app.MapPost("/{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers", CreateAnswer)
-                .Validate<RouteHandlerBuilder, CreateAssessmentQuestionAnswerRequest>()
+                .Validate<RouteHandlerBuilder, CreateAssessmentSectionQuestionAnswerRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
             Routes.Add("POST: /{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers");
 
             app.MapPut("/{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers/{id}", UpdateAnswer)
-                .Validate<RouteHandlerBuilder, UpdateAssessmentQuestionAnswerRequest>()
+                .Validate<RouteHandlerBuilder, UpdateAssessmentSectionQuestionAnswerRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
             Routes.Add("PUT: /{tenant}/api/v1/assessments/{assessmentId}/questions/{questionId}/answers/{id}");
@@ -49,7 +49,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// Gets all answers for a question in an assessment.
         /// Only instructors can view all answers; users can only view their own answers.
         /// </summary>
-        private static async Task<Results<Ok<ListAssessmentQuestionAnswersResponse>, BadRequest<ErrorResponse>>> GetAnswers(
+        private static async Task<Results<Ok<ListAssessmentSectionQuestionAnswersResponse>, BadRequest<ErrorResponse>>> GetAnswers(
             string tenant,
             long assessmentId,
             long questionId,
@@ -62,10 +62,10 @@ namespace Academy.Services.Api.Endpoints.Assessments
             bool isInstructor = (user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false);
             long? userId = user?.GetUserId();
 
-            IQueryable<Shared.Data.Models.Assessments.AssessmentQuestionAnswer> query = db.AssessmentQuestionAnswers
+            IQueryable<Shared.Data.Models.Assessments.AssessmentSectionQuestionAnswer> query = db.AssessmentSectionQuestionAnswers
                 .AsNoTracking()
-                .Where(a => a.AssessmentId == assessmentId && a.AssessmentQuestionId == questionId)
-                .Include(a => a.SelectedOptions)
+                .Where(a => a.AssessmentId == assessmentId && a.QuestionId == questionId)
+                .Include(a => a.SelectedOptionAnswers)
                 .AsQueryable();
 
             if (!isInstructor)
@@ -89,31 +89,31 @@ namespace Academy.Services.Api.Endpoints.Assessments
             if (pageSize < 1) pageSize = 20;
             if (pageSize > 100) pageSize = 100;
 
-            List<AssessmentQuestionAnswerResponse> answers = await query
+            List<AssessmentSectionQuestionAnswerResponse> answers = await query
                 .OrderBy(a => a.Id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(a => new AssessmentQuestionAnswerResponse(
+                .Select(a => new AssessmentSectionQuestionAnswerResponse(
                     a.Id,
                     a.AssessmentId,
-                    a.AssessmentQuestionId,
-                    a.SelectedOptions.Select(o =>
-                        new AssessmentQuestionAnswerOptionResponse(
+                    a.QuestionId,
+                    a.SelectedOptionAnswers.Select(o =>
+                        new AssessmentSectionQuestionAnswerOptionResponse(
                             o.Id,
-                            o.AssessmentQuestionAnswerId,
-                            o.AssessmentQuestionOptionId
+                            o.AnswerId,
+                            o.OptionId
                         )).ToList()
                 ))
                 .ToListAsync();
 
-            return TypedResults.Ok(new ListAssessmentQuestionAnswersResponse(answers, totalCount));
+            return TypedResults.Ok(new ListAssessmentSectionQuestionAnswersResponse(answers, totalCount));
         }
 
         /// <summary>
         /// Gets a specific answer for a question in an assessment.
         /// Only instructors can view any answer; users can only view their own answer.
         /// </summary>
-        private static async Task<Results<Ok<AssessmentQuestionAnswerResponse>, BadRequest<ErrorResponse>>> GetAnswer(
+        private static async Task<Results<Ok<AssessmentSectionQuestionAnswerResponse>, BadRequest<ErrorResponse>>> GetAnswer(
             string tenant,
             long assessmentId,
             long questionId,
@@ -125,10 +125,10 @@ namespace Academy.Services.Api.Endpoints.Assessments
             bool isInstructor = (user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false);
             long? userId = user?.GetUserId();
 
-            IQueryable<Shared.Data.Models.Assessments.AssessmentQuestionAnswer> query = db.AssessmentQuestionAnswers
+            IQueryable<Shared.Data.Models.Assessments.AssessmentSectionQuestionAnswer> query = db.AssessmentSectionQuestionAnswers
                 .AsNoTracking()
-                .Where(a => a.Id == id && a.AssessmentId == assessmentId && a.AssessmentQuestionId == questionId)
-                .Include(a => a.SelectedOptions)
+                .Where(a => a.Id == id && a.AssessmentId == assessmentId && a.QuestionId == questionId)
+                .Include(a => a.SelectedOptionAnswers)
                 .AsQueryable();
 
             if (!isInstructor)
@@ -146,16 +146,16 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 query = query.Where(a => a.UserProfileId == userId.Value);
             }
 
-            AssessmentQuestionAnswerResponse? answer = await query
-                .Select(a => new AssessmentQuestionAnswerResponse(
+            AssessmentSectionQuestionAnswerResponse? answer = await query
+                .Select(a => new AssessmentSectionQuestionAnswerResponse(
                     a.Id,
                     a.AssessmentId,
-                    a.AssessmentQuestionId,
-                    a.SelectedOptions.Select(o =>
-                        new AssessmentQuestionAnswerOptionResponse(
+                    a.QuestionId,
+                    a.SelectedOptionAnswers.Select(o =>
+                        new AssessmentSectionQuestionAnswerOptionResponse(
                             o.Id,
-                            o.AssessmentQuestionAnswerId,
-                            o.AssessmentQuestionOptionId
+                            o.AnswerId,
+                            o.OptionId
                         )).ToList()
                 ))
                 .FirstOrDefaultAsync();
@@ -177,44 +177,44 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// <summary>
         /// Creates a new answer for a question in an assessment, including selected options.
         /// </summary>
-        private static async Task<Results<Ok<AssessmentQuestionAnswerResponse>, BadRequest<ErrorResponse>>> CreateAnswer(
+        private static async Task<Results<Ok<AssessmentSectionQuestionAnswerResponse>, BadRequest<ErrorResponse>>> CreateAnswer(
             string tenant,
             long assessmentId,
             long questionId,
-            CreateAssessmentQuestionAnswerRequest request,
+            CreateAssessmentSectionQuestionAnswerRequest request,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
             long? userId = user?.GetUserId();
 
-            Shared.Data.Models.Assessments.AssessmentQuestionAnswer answer = new()
+            Shared.Data.Models.Assessments.AssessmentSectionQuestionAnswer answer = new()
             {
                 AssessmentId = assessmentId,
-                AssessmentQuestionId = questionId,
+                QuestionId = questionId,
                 UserProfileId = userId ?? 0,
-                SelectedOptions = [.. request.SelectedOptionIds.Select(optionId =>
-                    new Shared.Data.Models.Assessments.AssessmentQuestionAnswerOption
+                SelectedOptionAnswers = [.. request.SelectedOptionIds.Select(optionId =>
+                    new Shared.Data.Models.Assessments.AssessmentSectionQuestionAnswerOption
                     {
-                        AssessmentQuestionOptionId = optionId
+                        OptionId = optionId
                     })],
                 CreatedBy = user?.Identity?.Name ?? "Unknown",
                 UpdatedBy = user?.Identity?.Name ?? "Unknown",
                 TenantId = db.TenantId
             };
 
-            db.AssessmentQuestionAnswers.Add(answer);
+            db.AssessmentSectionQuestionAnswers.Add(answer);
             await db.SaveChangesAsync();
 
-            AssessmentQuestionAnswerResponse response = new(
+            AssessmentSectionQuestionAnswerResponse response = new(
                 answer.Id,
                 answer.AssessmentId,
-                answer.AssessmentQuestionId,
-                [.. answer.SelectedOptions.Select(o =>
-                    new AssessmentQuestionAnswerOptionResponse(
+                answer.QuestionId,
+                [.. answer.SelectedOptionAnswers.Select(o =>
+                    new AssessmentSectionQuestionAnswerOptionResponse(
                         o.Id,
-                        o.AssessmentQuestionAnswerId,
-                        o.AssessmentQuestionOptionId
+                        o.AnswerId,
+                        o.OptionId
                     ))]
             );
 
@@ -224,16 +224,16 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// <summary>
         /// Updates an existing answer for a question in an assessment, including selected options.
         /// </summary>
-        private static async Task<Results<Ok<AssessmentQuestionAnswerResponse>, BadRequest<ErrorResponse>>> UpdateAnswer(
+        private static async Task<Results<Ok<AssessmentSectionQuestionAnswerResponse>, BadRequest<ErrorResponse>>> UpdateAnswer(
             string tenant,
             long assessmentId,
             long questionId,
             long id,
-            UpdateAssessmentQuestionAnswerRequest request,
+            UpdateAssessmentSectionQuestionAnswerRequest request,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            if (id != request.Id || assessmentId != request.AssessmentId || questionId != request.AssessmentQuestionId)
+            if (id != request.Id || assessmentId != request.AssessmentId || questionId != request.AssessmentSectionQuestionId)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status400BadRequest,
@@ -244,9 +244,9 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 ));
             }
 
-            Shared.Data.Models.Assessments.AssessmentQuestionAnswer? answer = await db.AssessmentQuestionAnswers
-                .Include(a => a.SelectedOptions)
-                .FirstOrDefaultAsync(a => a.Id == id && a.AssessmentId == assessmentId && a.AssessmentQuestionId == questionId);
+            Shared.Data.Models.Assessments.AssessmentSectionQuestionAnswer? answer = await db.AssessmentSectionQuestionAnswers
+                .Include(a => a.SelectedOptionAnswers)
+                .FirstOrDefaultAsync(a => a.Id == id && a.AssessmentId == assessmentId && a.QuestionId == questionId);
 
             if (answer == null)
             {
@@ -260,11 +260,11 @@ namespace Academy.Services.Api.Endpoints.Assessments
             }
 
             // Remove old options and add new ones
-            db.AssessmentQuestionAnswerOptions.RemoveRange(answer.SelectedOptions);
-            answer.SelectedOptions = [.. request.SelectedOptionIds.Select(optionId =>
-                new Shared.Data.Models.Assessments.AssessmentQuestionAnswerOption
+            db.AssessmentSectionQuestionAnswerOptions.RemoveRange(answer.SelectedOptionAnswers);
+            answer.SelectedOptionAnswers = [.. request.SelectedOptionIds.Select(optionId =>
+                new Shared.Data.Models.Assessments.AssessmentSectionQuestionAnswerOption
                 {
-                    AssessmentQuestionOptionId = optionId
+                    OptionId = optionId
                 })];
 
             ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
@@ -275,15 +275,15 @@ namespace Academy.Services.Api.Endpoints.Assessments
 
             await db.SaveChangesAsync();
 
-            AssessmentQuestionAnswerResponse response = new(
+            AssessmentSectionQuestionAnswerResponse response = new(
                 answer.Id,
                 answer.AssessmentId,
-                answer.AssessmentQuestionId,
-                [.. answer.SelectedOptions.Select(o =>
-                    new AssessmentQuestionAnswerOptionResponse(
+                answer.QuestionId,
+                [.. answer.SelectedOptionAnswers.Select(o =>
+                    new AssessmentSectionQuestionAnswerOptionResponse(
                         o.Id,
-                        o.AssessmentQuestionAnswerId,
-                        o.AssessmentQuestionOptionId
+                        o.AnswerId,
+                        o.OptionId
                     ))]
             );
 
@@ -301,9 +301,9 @@ namespace Academy.Services.Api.Endpoints.Assessments
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            Shared.Data.Models.Assessments.AssessmentQuestionAnswer? answer = await db.AssessmentQuestionAnswers
-                .Include(a => a.SelectedOptions)
-                .FirstOrDefaultAsync(a => a.Id == id && a.AssessmentId == assessmentId && a.AssessmentQuestionId == questionId);
+            Shared.Data.Models.Assessments.AssessmentSectionQuestionAnswer? answer = await db.AssessmentSectionQuestionAnswers
+                .Include(a => a.SelectedOptionAnswers)
+                .FirstOrDefaultAsync(a => a.Id == id && a.AssessmentId == assessmentId && a.QuestionId == questionId);
 
             if (answer == null)
             {
@@ -316,8 +316,8 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 ));
             }
 
-            db.AssessmentQuestionAnswerOptions.RemoveRange(answer.SelectedOptions);
-            db.AssessmentQuestionAnswers.Remove(answer);
+            db.AssessmentSectionQuestionAnswerOptions.RemoveRange(answer.SelectedOptionAnswers);
+            db.AssessmentSectionQuestionAnswers.Remove(answer);
             await db.SaveChangesAsync();
 
             return TypedResults.Ok();

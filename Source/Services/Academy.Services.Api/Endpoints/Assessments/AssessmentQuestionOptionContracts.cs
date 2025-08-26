@@ -7,13 +7,13 @@ namespace Academy.Services.Api.Endpoints.Assessments
     /// <summary>
     /// Contracts for assessment question option endpoints.
     /// </summary>
-    public static class AssessmentQuestionOptionContracts
+    public static class AssessmentSectionQuestionOptionContracts
     {
         /// <summary>
         /// Request to create an assessment question option.
         /// </summary>
-        public record CreateAssessmentQuestionOptionRequest(
-            long AssessmentQuestionId,
+        public record CreateAssessmentSectionQuestionOptionRequest(
+            long AssessmentSectionQuestionId,
             string OptionText,
             double Score,
             bool? IsCorrect,
@@ -23,9 +23,9 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// <summary>
         /// Request to update an assessment question option.
         /// </summary>
-        public record UpdateAssessmentQuestionOptionRequest(
+        public record UpdateAssessmentSectionQuestionOptionRequest(
             long Id,
-            long AssessmentQuestionId,
+            long AssessmentSectionQuestionId,
             string OptionText,
             double Score,
             bool? IsCorrect,
@@ -35,9 +35,9 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// <summary>
         /// Response for an assessment question option.
         /// </summary>
-        public record AssessmentQuestionOptionResponse(
+        public record AssessmentSectionQuestionOptionResponse(
             long Id,
-            long AssessmentQuestionId,
+            long AssessmentSectionQuestionId,
             string OptionText,
             double Score,
             bool? IsCorrect,
@@ -47,31 +47,31 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// <summary>
         /// Response for a list of assessment question options.
         /// </summary>
-        public record ListAssessmentQuestionOptionsResponse(IReadOnlyList<AssessmentQuestionOptionResponse> Options);
+        public record ListAssessmentSectionQuestionOptionsResponse(IReadOnlyList<AssessmentSectionQuestionOptionResponse> Options);
     }
 
     /// <summary>
-    /// Validator for <see cref="AssessmentQuestionOptionContracts.CreateAssessmentQuestionOptionRequest"/>.
+    /// Validator for <see cref="AssessmentSectionQuestionOptionContracts.CreateAssessmentSectionQuestionOptionRequest"/>.
     /// </summary>
-    public sealed class CreateAssessmentQuestionOptionValidator : AbstractValidator<AssessmentQuestionOptionContracts.CreateAssessmentQuestionOptionRequest>
+    public sealed class CreateAssessmentSectionQuestionOptionValidator : AbstractValidator<AssessmentSectionQuestionOptionContracts.CreateAssessmentSectionQuestionOptionRequest>
     {
-        public CreateAssessmentQuestionOptionValidator()
+        public CreateAssessmentSectionQuestionOptionValidator()
         {
-            RuleFor(x => x.AssessmentQuestionId).GreaterThan(0).WithMessage(_ => ModelTranslation.Global__Field__Required);
+            RuleFor(x => x.AssessmentSectionQuestionId).GreaterThan(0).WithMessage(_ => ModelTranslation.Global__Field__Required);
             RuleFor(x => x.OptionText).NotEmpty().MaximumLength(1000);
             RuleFor(x => x.Order).GreaterThanOrEqualTo(0);
         }
     }
 
     /// <summary>
-    /// Validator for <see cref="AssessmentQuestionOptionContracts.UpdateAssessmentQuestionOptionRequest"/>.
+    /// Validator for <see cref="AssessmentSectionQuestionOptionContracts.UpdateAssessmentSectionQuestionOptionRequest"/>.
     /// </summary>
-    public sealed class UpdateAssessmentQuestionOptionValidator : AbstractValidator<AssessmentQuestionOptionContracts.UpdateAssessmentQuestionOptionRequest>
+    public sealed class UpdateAssessmentSectionQuestionOptionValidator : AbstractValidator<AssessmentSectionQuestionOptionContracts.UpdateAssessmentSectionQuestionOptionRequest>
     {
-        public UpdateAssessmentQuestionOptionValidator()
+        public UpdateAssessmentSectionQuestionOptionValidator()
         {
             RuleFor(x => x.Id).GreaterThan(0);
-            RuleFor(x => x.AssessmentQuestionId).GreaterThan(0).WithMessage(_ => ModelTranslation.Global__Field__Required);
+            RuleFor(x => x.AssessmentSectionQuestionId).GreaterThan(0).WithMessage(_ => ModelTranslation.Global__Field__Required);
             RuleFor(x => x.OptionText).NotEmpty().MaximumLength(1000);
             RuleFor(x => x.Order).GreaterThanOrEqualTo(0);
         }

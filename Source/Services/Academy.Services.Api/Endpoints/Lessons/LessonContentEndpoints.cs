@@ -20,38 +20,40 @@ namespace Academy.Services.Api.Endpoints.Lessons
 
         public static void AddEndpoints(this IEndpointRouteBuilder app)
         {
-            app.MapGet("/{tenant}/api/v1/lessons/{lessonId}/contents", GetLessonContents)
+            // Updated: sectionId is now part of the route hierarchy
+            app.MapGet("/{tenant}/api/v1/lessons/{lessonId}/lessonsections/{sectionId}/contents", GetLessonContents)
                 .RequireAuthorization();
-            Routes.Add("GET: /{tenant}/api/v1/lessons/{lessonId}/contents?page={page}&pageSize={pageSize}");
+            Routes.Add("GET: /{tenant}/api/v1/lessons/{lessonId}/lessonsections/{sectionId}/contents?page={page}&pageSize={pageSize}");
 
-            app.MapGet("/{tenant}/api/v1/lessons/{lessonId}/contents/{id}", GetLessonContent)
+            app.MapGet("/{tenant}/api/v1/lessons/{lessonId}/lessonsections/{sectionId}/contents/{id}", GetLessonContent)
                 .RequireAuthorization();
-            Routes.Add("GET: /{tenant}/api/v1/lessons/{lessonId}/contents/{id}");
+            Routes.Add("GET: /{tenant}/api/v1/lessons/{lessonId}/lessonsections/{sectionId}/contents/{id}");
 
-            app.MapPost("/{tenant}/api/v1/lessons/{lessonId}/contents", CreateLessonContent)
+            app.MapPost("/{tenant}/api/v1/lessons/{lessonId}/lessonsections/{sectionId}/contents", CreateLessonContent)
                 .Validate<RouteHandlerBuilder, CreateLessonContentRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add("POST: /{tenant}/api/v1/lessons/{lessonId}/contents");
+            Routes.Add("POST: /{tenant}/api/v1/lessons/{lessonId}/lessonsections/{sectionId}/contents");
 
             // Update uses POST as it expects the full entity in the body, not just the fields to update.
-            app.MapPost("/{tenant}/api/v1/lessons/{lessonId}/contents/{id}", UpdateLessonContent)
+            app.MapPost("/{tenant}/api/v1/lessons/{lessonId}/lessonsections/{sectionId}/contents/{id}", UpdateLessonContent)
                 .Validate<RouteHandlerBuilder, UpdateLessonContentRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add("POST: /{tenant}/api/v1/lessons/{lessonId}/contents/{id}");
+            Routes.Add("POST: /{tenant}/api/v1/lessons/{lessonId}/lessonsections/{sectionId}/contents/{id}");
 
-            app.MapDelete("/{tenant}/api/v1/lessons/{lessonId}/contents/{id}", DeleteLessonContent)
+            app.MapDelete("/{tenant}/api/v1/lessons/{lessonId}/lessonsections/{sectionId}/contents/{id}", DeleteLessonContent)
                 .RequireAuthorization();
-            Routes.Add("DELETE: /{tenant}/api/v1/lessons/{lessonId}/contents/{id}");
+            Routes.Add("DELETE: /{tenant}/api/v1/lessons/{lessonId}/lessonsections/{sectionId}/contents/{id}");
         }
 
         /// <summary>
-        /// Gets all content items for a lesson.
+        /// Gets all content items for a lesson section.
         /// </summary>
         public static async Task<Results<Ok<ListLessonContentsResponse>, BadRequest<ErrorResponse>>> GetLessonContents(
             string tenant,
             long lessonId,
+            long sectionId,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor,
             int page = 1,
@@ -73,23 +75,24 @@ namespace Academy.Services.Api.Endpoints.Lessons
             long? userId = user?.GetUserId();
 
             // Get the courseId for this lesson
-            Shared.Data.Models.Lessons.Lesson? lesson = await db.Lessons
-                .Include(l => l.CourseModule)
+            var lessonSection = await db.LessonSections
+                .Include(ls => ls.Lesson)
+                    .ThenInclude(l => l.CourseModule)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(l => l.Id == lessonId);
+                .FirstOrDefaultAsync(ls => ls.Id == sectionId && ls.LessonId == lessonId);
 
-            if (lesson == null)
+            if (lessonSection == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Lesson with Id {lessonId} not found.",
+                    $"Lesson section with Id {sectionId} not found for lesson {lessonId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
-            long? courseId = lesson.CourseModule?.CourseId;
+            long? courseId = lessonSection.Lesson?.CourseModule?.CourseId;
 
             bool hasAccess = isInstructor ||
                 (userId.HasValue && courseId.HasValue &&
@@ -100,39 +103,40 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status403Forbidden,
                     "Forbidden",
-                    "You do not have access to this lesson content.",
+                    "You do not have access to this lesson section content.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
-            int totalCount = await db.LessonContents
+            int totalCount = await db.LessonSectionContents
                 .AsNoTracking()
-                .Where(c => c.LessonId == lessonId)
+                .Where(c => c.LessonSectionId == sectionId)
                 .CountAsync();
 
             if (page < 1) page = 1;
             if (pageSize < 1) pageSize = 20;
             if (pageSize > 100) pageSize = 100;
 
-            List<LessonContentResponse> contents = await db.LessonContents
+            List<LessonContentResponse> contents = await db.LessonSectionContents
                 .AsNoTracking()
-                .Where(c => c.LessonId == lessonId)
+                .Where(c => c.LessonSectionId == sectionId)
                 .OrderBy(c => c.Id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(c => new LessonContentResponse(c.Id, c.LessonId, c.ContentType, c.ContentData))
+                .Select(c => new LessonContentResponse(c.Id, lessonId, c.ContentType, c.ContentData))
                 .ToListAsync();
 
             return TypedResults.Ok(new ListLessonContentsResponse(contents, totalCount));
         }
 
         /// <summary>
-        /// Gets a specific content item for a lesson.
+        /// Gets a specific content item for a lesson section.
         /// </summary>
         public static async Task<Results<Ok<LessonContentResponse>, BadRequest<ErrorResponse>>> GetLessonContent(
             string tenant,
             long lessonId,
+            long sectionId,
             long id,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
@@ -152,24 +156,24 @@ namespace Academy.Services.Api.Endpoints.Lessons
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
             long? userId = user?.GetUserId();
 
-            // Get the courseId for this lesson
-            Shared.Data.Models.Lessons.Lesson? lesson = await db.Lessons
-                .Include(l => l.CourseModule)
+            var lessonSection = await db.LessonSections
+                .Include(ls => ls.Lesson)
+                    .ThenInclude(l => l.CourseModule)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(l => l.Id == lessonId);
+                .FirstOrDefaultAsync(ls => ls.Id == sectionId && ls.LessonId == lessonId);
 
-            if (lesson == null)
+            if (lessonSection == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Lesson with Id {lessonId} not found.",
+                    $"Lesson section with Id {sectionId} not found for lesson {lessonId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
-            long? courseId = lesson.CourseModule?.CourseId;
+            long? courseId = lessonSection.Lesson?.CourseModule?.CourseId;
 
             bool hasAccess = isInstructor ||
                 (userId.HasValue && courseId.HasValue &&
@@ -180,16 +184,16 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status403Forbidden,
                     "Forbidden",
-                    "You do not have access to this lesson content.",
+                    "You do not have access to this lesson section content.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
-            LessonContentResponse? content = await db.LessonContents
+            LessonContentResponse? content = await db.LessonSectionContents
                 .AsNoTracking()
-                .Where(c => c.LessonId == lessonId && c.Id == id)
-                .Select(c => new LessonContentResponse(c.Id, c.LessonId, c.ContentType, c.ContentData))
+                .Where(c => c.LessonSectionId == sectionId && c.Id == id)
+                .Select(c => new LessonContentResponse(c.Id, lessonId, c.ContentType, c.ContentData))
                 .FirstOrDefaultAsync();
 
             if (content == null)
@@ -197,7 +201,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Lesson content with Id {id} not found.",
+                    $"Lesson section content with Id {id} not found.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
@@ -207,11 +211,12 @@ namespace Academy.Services.Api.Endpoints.Lessons
         }
 
         /// <summary>
-        /// Creates a new content item for a lesson.
+        /// Creates a new content item for a lesson section.
         /// </summary>
         public static async Task<Results<Ok<LessonContentResponse>, BadRequest<ErrorResponse>>> CreateLessonContent(
             string tenant,
             long lessonId,
+            long sectionId,
             CreateLessonContentRequest request,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
@@ -223,15 +228,15 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status403Forbidden,
                     "Forbidden",
-                    "You are not allowed to create lesson content.",
+                    "You are not allowed to create lesson section content.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
-            Shared.Data.Models.Lessons.LessonContent content = new()
+            Shared.Data.Models.Lessons.LessonSectionContent content = new()
             {
-                LessonId = lessonId,
+                LessonSectionId = sectionId,
                 ContentType = request.ContentType,
                 ContentData = request.ContentData,
                 CreatedBy = user?.Identity?.Name ?? "Unknown",
@@ -239,18 +244,19 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 TenantId = db.TenantId
             };
 
-            db.LessonContents.Add(content);
+            db.LessonSectionContents.Add(content);
             await db.SaveChangesAsync();
 
-            return TypedResults.Ok(new LessonContentResponse(content.Id, content.LessonId, content.ContentType, content.ContentData));
+            return TypedResults.Ok(new LessonContentResponse(content.Id, lessonId, content.ContentType, content.ContentData));
         }
 
         /// <summary>
-        /// Updates an existing content item for a lesson.
+        /// Updates an existing content item for a lesson section.
         /// </summary>
         public static async Task<Results<Ok<LessonContentResponse>, BadRequest<ErrorResponse>>> UpdateLessonContent(
             string tenant,
             long lessonId,
+            long sectionId,
             long id,
             UpdateLessonContentRequest request,
             ApplicationDbContext db,
@@ -263,13 +269,13 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status403Forbidden,
                     "Forbidden",
-                    "You are not allowed to update lesson content.",
+                    "You are not allowed to update lesson section content.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
-            if (id != request.Id || lessonId != request.LessonId)
+            if (id != request.Id)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status400BadRequest,
@@ -280,13 +286,13 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 ));
             }
 
-            Shared.Data.Models.Lessons.LessonContent? content = await db.LessonContents.FirstOrDefaultAsync(c => c.Id == id && c.LessonId == lessonId);
+            Shared.Data.Models.Lessons.LessonSectionContent? content = await db.LessonSectionContents.FirstOrDefaultAsync(c => c.Id == id && c.LessonSectionId == sectionId);
             if (content == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Lesson content with Id {id} not found.",
+                    $"Lesson section content with Id {id} not found.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
@@ -299,15 +305,16 @@ namespace Academy.Services.Api.Endpoints.Lessons
 
             await db.SaveChangesAsync();
 
-            return TypedResults.Ok(new LessonContentResponse(content.Id, content.LessonId, content.ContentType, content.ContentData));
+            return TypedResults.Ok(new LessonContentResponse(content.Id, lessonId, content.ContentType, content.ContentData));
         }
 
         /// <summary>
-        /// Soft-deletes a lesson content item by marking it as deleted.
+        /// Soft-deletes a lesson section content item by marking it as deleted.
         /// </summary>
         public static async Task<Results<Ok, BadRequest<ErrorResponse>>> DeleteLessonContent(
             string tenant,
             long lessonId,
+            long sectionId,
             long id,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
@@ -319,19 +326,19 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status403Forbidden,
                     "Forbidden",
-                    "You are not allowed to delete lesson content.",
+                    "You are not allowed to delete lesson section content.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
-            Shared.Data.Models.Lessons.LessonContent? content = await db.LessonContents.FirstOrDefaultAsync(c => c.Id == id && c.LessonId == lessonId);
+            Shared.Data.Models.Lessons.LessonSectionContent? content = await db.LessonSectionContents.FirstOrDefaultAsync(c => c.Id == id && c.LessonSectionId == sectionId);
             if (content == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Lesson content with Id {id} not found.",
+                    $"Lesson section content with Id {id} not found.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));

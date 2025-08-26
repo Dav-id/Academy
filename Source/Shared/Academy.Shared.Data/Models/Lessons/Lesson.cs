@@ -24,8 +24,8 @@ namespace Academy.Shared.Data.Models.Lessons
         public long                                         CourseModuleId                  { get; set; }
         public CourseModule?                                CourseModule                    { get; set; }
 
-        public ICollection<LessonContent>                   Contents                        { get; set; } = [];
-        
+        public ICollection<LessonSection>                   LessonSections                  { get; set; } = [];
+            
         public ICollection<Assessment>                      Assessments                     { get; set; } = [];
 
         public ICollection<LessonPrerequisiteLesson>        PrerequisiteLessons             { get; set; } = [];

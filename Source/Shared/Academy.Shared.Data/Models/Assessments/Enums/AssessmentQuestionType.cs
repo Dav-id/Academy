@@ -1,11 +1,13 @@
 ﻿namespace Academy.Shared.Data.Models.Assessments.Enums
 {
-    public enum QuizQuestionType
+    public enum AssessmentQuestionType
     {
         MultipleChoice,
         SingleChoice,
-        TrueFalse,
+        Boolean,
         ShortAnswer,
-        LongAnswer
+        LongAnswer,
+        IntegerAnswer,
+        DecimalAnswer
     }
 }

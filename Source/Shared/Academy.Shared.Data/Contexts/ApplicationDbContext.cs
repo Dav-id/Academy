@@ -109,7 +109,7 @@ namespace Academy.Shared.Data.Contexts
 
         // Assessments
         public DbSet<Assessment>                                Assessments                                 { get; set; }
-        public DbSet<AssessmentSectionQuestion>                 AssessmentSections                          { get; set; }
+        public DbSet<AssessmentSection>                         AssessmentSections                          { get; set; }
         public DbSet<AssessmentSectionQuestion>                 AssessmentSectionQuestions                  { get; set; }
         public DbSet<AssessmentSectionQuestionAnswer>           AssessmentSectionQuestionAnswers            { get; set; }
         public DbSet<AssessmentSectionQuestionAnswerOption>     AssessmentSectionQuestionAnswerOptions      { get; set; }

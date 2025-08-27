@@ -20,19 +20,19 @@ namespace Academy.Services.Api.Endpoints.Lessons
 
         public static void AddEndpoints(this IEndpointRouteBuilder app)
         {
-            app.MapGet("/{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments", GetLessonPrerequisiteAssessments)
+            app.MapGet("/{tenant}/api/v1/courses/{courseId}/lessons/{lessonId}/prerequisite-assessments", GetLessonPrerequisiteAssessments)
                 .RequireAuthorization();
-            Routes.Add("GET: /{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments?page={page}&pageSize={pageSize}");
+            Routes.Add("GET: /{tenant}/api/v1/courses/{courseId}/lessons/{lessonId}/prerequisite-assessments?page={page}&pageSize={pageSize}");
 
-            app.MapPost("/{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments", CreateLessonPrerequisiteAssessment)
+            app.MapPost("/{tenant}/api/v1/courses/{courseId}/lessons/{lessonId}/prerequisite-assessments", CreateLessonPrerequisiteAssessment)
                 .Validate<RouteHandlerBuilder, CreateLessonPrerequisiteAssessmentRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add("POST: /{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments");
+            Routes.Add("POST: /{tenant}/api/v1/courses/{courseId}/lessons/{lessonId}/prerequisite-assessments");
 
-            app.MapDelete("/{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments/{prerequisiteAssessmentId}", DeleteLessonPrerequisiteAssessment)
+            app.MapDelete("/{tenant}/api/v1/courses/{courseId}/lessons/{lessonId}/prerequisite-assessments/{prerequisiteAssessmentId}", DeleteLessonPrerequisiteAssessment)
                 .RequireAuthorization();
-            Routes.Add("DELETE: /{tenant}/api/v1/lessons/{lessonId}/prerequisite-assessments/{prerequisiteAssessmentId}");
+            Routes.Add("DELETE: /{tenant}/api/v1/courses/{courseId}/lessons/{lessonId}/prerequisite-assessments/{prerequisiteAssessmentId}");
         }
 
         /// <summary>
@@ -40,6 +40,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// </summary>
         private static async Task<Results<Ok<ListLessonPrerequisiteAssessmentsResponse>, BadRequest<ErrorResponse>>> GetLessonPrerequisiteAssessments(
             string tenant,
+            long courseId,
             long lessonId,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor,
@@ -61,28 +62,28 @@ namespace Academy.Services.Api.Endpoints.Lessons
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
             long? userId = user?.GetUserId();
 
-            // Get the courseId for this lesson
+            // Get the courseId for this lesson and validate hierarchy
             Shared.Data.Models.Lessons.Lesson? lesson = await db.Lessons
                 .Include(l => l.CourseModule)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(l => l.Id == lessonId);
+                .FirstOrDefaultAsync(l => l.Id == lessonId && l.CourseModule != null && l.CourseModule.CourseId == courseId);
 
             if (lesson == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Lesson with Id {lessonId} not found.",
+                    $"Lesson with Id {lessonId} not found in course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
-            long? courseId = lesson.CourseModule?.CourseId;
+            long? dbCourseId = lesson.CourseModule?.CourseId;
 
             bool hasAccess = isInstructor ||
-                (userId.HasValue && courseId.HasValue &&
-                 await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value));
+                (userId.HasValue && dbCourseId.HasValue &&
+                 await db.CourseEnrollments.AnyAsync(e => e.CourseId == dbCourseId && e.UserProfileId == userId.Value));
 
             if (!hasAccess)
             {
@@ -121,6 +122,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// </summary>
         private static async Task<Results<Ok<LessonPrerequisiteAssessmentResponse>, BadRequest<ErrorResponse>>> CreateLessonPrerequisiteAssessment(
             string tenant,
+            long courseId,
             long lessonId,
             CreateLessonPrerequisiteAssessmentRequest request,
             ApplicationDbContext db,
@@ -134,6 +136,22 @@ namespace Academy.Services.Api.Endpoints.Lessons
                     StatusCodes.Status403Forbidden,
                     "Forbidden",
                     "You are not allowed to create lesson prerequisite assessments.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            // Validate lesson belongs to course
+            var lesson = await db.Lessons
+                .Include(l => l.CourseModule)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(l => l.Id == lessonId && l.CourseModule != null && l.CourseModule.CourseId == courseId);
+            if (lesson == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status404NotFound,
+                    "Not Found",
+                    $"Lesson with Id {lessonId} not found in course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
@@ -170,6 +188,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// </summary>
         private static async Task<Results<Ok, BadRequest<ErrorResponse>>> DeleteLessonPrerequisiteAssessment(
             string tenant,
+            long courseId,
             long lessonId,
             long prerequisiteAssessmentId,
             ApplicationDbContext db,
@@ -188,6 +207,22 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 ));
             }
 
+            // Validate lesson belongs to course
+            var lesson = await db.Lessons
+                .Include(l => l.CourseModule)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(l => l.Id == lessonId && l.CourseModule != null && l.CourseModule.CourseId == courseId);
+            if (lesson == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status404NotFound,
+                    "Not Found",
+                    $"Lesson with Id {lessonId} not found in course {courseId}.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             Shared.Data.Models.Lessons.LessonPrerequisiteAssessment? prerequisite = await db.LessonPrerequisiteAssessments
                 .FirstOrDefaultAsync(p => p.PrerequisiteAssessmentId == prerequisiteAssessmentId && p.LessonId == lessonId);
             if (prerequisite == null)
@@ -195,7 +230,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Prerequisite assessment with Id {prerequisiteAssessmentId} not found for lesson {lessonId}.",
+                    $"Prerequisite assessment with Id {prerequisiteAssessmentId} not found for lesson {lessonId} in course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));

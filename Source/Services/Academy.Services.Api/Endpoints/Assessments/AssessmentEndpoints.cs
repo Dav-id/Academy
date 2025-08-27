@@ -18,36 +18,37 @@ namespace Academy.Services.Api.Endpoints.Assessments
 
         public static void AddEndpoints(this IEndpointRouteBuilder app)
         {
-            app.MapGet("/{tenant}/api/v1/assessments", GetAssessments)
+            app.MapGet("/{tenant}/api/v1/courses/{courseId}/assessments", GetAssessments)
                 .RequireAuthorization();
-            Routes.Add("GET: /{tenant}/api/v1/assessments?page={page}&pageSize={pageSize}");
+            Routes.Add("GET: /{tenant}/api/v1/courses/{courseId}/assessments?page={page}&pageSize={pageSize}");
 
-            app.MapGet("/{tenant}/api/v1/assessments/{id}", GetAssessment)
+            app.MapGet("/{tenant}/api/v1/courses/{courseId}/assessments/{id}", GetAssessment)
                 .RequireAuthorization();
-            Routes.Add("GET: /{tenant}/api/v1/assessments/{id}");
+            Routes.Add("GET: /{tenant}/api/v1/courses/{courseId}/assessments/{id}");
 
-            app.MapPost("/{tenant}/api/v1/assessments", CreateAssessment)
+            app.MapPost("/{tenant}/api/v1/courses/{courseId}/assessments", CreateAssessment)
                 .Validate<RouteHandlerBuilder, CreateAssessmentRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add("POST: /{tenant}/api/v1/assessments");
+            Routes.Add("POST: /{tenant}/api/v1/courses/{courseId}/assessments");
 
-            app.MapPut("/{tenant}/api/v1/assessments/{id}", UpdateAssessment)
+            app.MapPut("/{tenant}/api/v1/courses/{courseId}/assessments/{id}", UpdateAssessment)
                 .Validate<RouteHandlerBuilder, UpdateAssessmentRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add("PUT: /{tenant}/api/v1/assessments/{id}");
+            Routes.Add("PUT: /{tenant}/api/v1/courses/{courseId}/assessments/{id}");
 
-            app.MapDelete("/{tenant}/api/v1/assessments/{id}", DeleteAssessment)
+            app.MapDelete("/{tenant}/api/v1/courses/{courseId}/assessments/{id}", DeleteAssessment)
                 .RequireAuthorization();
-            Routes.Add("DELETE: /{tenant}/api/v1/assessments/{id}");
+            Routes.Add("DELETE: /{tenant}/api/v1/courses/{courseId}/assessments/{id}");
         }
 
         /// <summary>
-        /// Gets all assessments.
+        /// Gets all assessments for a course.
         /// </summary>
         private static async Task<Results<Ok<ListAssessmentsResponse>, BadRequest<ErrorResponse>>> GetAssessments(
             string tenant,
+            long courseId,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor,
             int page = 1,
@@ -68,7 +69,9 @@ namespace Academy.Services.Api.Endpoints.Assessments
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
             long? userId = user?.GetUserId();
 
-            IQueryable<Shared.Data.Models.Assessments.Assessment> query = db.Assessments.AsNoTracking();
+            IQueryable<Shared.Data.Models.Assessments.Assessment> query = db.Assessments
+                .AsNoTracking()
+                .Where(a => a.CourseModule != null && a.CourseModule.CourseId == courseId);
 
             if (!isInstructor)
             {
@@ -109,10 +112,11 @@ namespace Academy.Services.Api.Endpoints.Assessments
         }
 
         /// <summary>
-        /// Gets a specific assessment by ID.
+        /// Gets a specific assessment by ID for a course.
         /// </summary>
         private static async Task<Results<Ok<AssessmentResponse>, BadRequest<ErrorResponse>>> GetAssessment(
             string tenant,
+            long courseId,
             long id,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
@@ -132,7 +136,9 @@ namespace Academy.Services.Api.Endpoints.Assessments
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
             long? userId = user?.GetUserId();
 
-            IQueryable<Shared.Data.Models.Assessments.Assessment> query = db.Assessments.AsNoTracking();
+            IQueryable<Shared.Data.Models.Assessments.Assessment> query = db.Assessments
+                .AsNoTracking()
+                .Where(a => a.Id == id && a.CourseModule != null && a.CourseModule.CourseId == courseId);
 
             if (!isInstructor)
             {
@@ -157,7 +163,6 @@ namespace Academy.Services.Api.Endpoints.Assessments
             }
 
             AssessmentResponse? assessment = await query
-                .Where(a => a.Id == id)
                 .Select(a => new AssessmentResponse(
                     a.Id,
                     a.Title ?? string.Empty,
@@ -172,7 +177,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Assessment with Id {id} not found.",
+                    $"Assessment with Id {id} not found in course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
@@ -182,10 +187,11 @@ namespace Academy.Services.Api.Endpoints.Assessments
         }
 
         /// <summary>
-        /// Creates a new assessment.
+        /// Creates a new assessment for a course.
         /// </summary>
         private static async Task<Results<Ok<AssessmentResponse>, BadRequest<ErrorResponse>>> CreateAssessment(
             string tenant,
+            long courseId,
             CreateAssessmentRequest request,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
@@ -198,6 +204,21 @@ namespace Academy.Services.Api.Endpoints.Assessments
                     StatusCodes.Status403Forbidden,
                     "Forbidden",
                     "You are not allowed to create assessments.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            // Validate CourseModule belongs to course
+            var courseModule = await db.CourseModules
+                .AsNoTracking()
+                .FirstOrDefaultAsync(cm => cm.Id == request.CourseModuleId && cm.CourseId == courseId);
+            if (courseModule == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status400BadRequest,
+                    "Invalid Request",
+                    $"CourseModule with Id {request.CourseModuleId} does not belong to course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
@@ -227,10 +248,11 @@ namespace Academy.Services.Api.Endpoints.Assessments
         }
 
         /// <summary>
-        /// Updates an existing assessment.
+        /// Updates an existing assessment for a course.
         /// </summary>
         private static async Task<Results<Ok<AssessmentResponse>, BadRequest<ErrorResponse>>> UpdateAssessment(
             string tenant,
+            long courseId,
             long id,
             UpdateAssessmentRequest request,
             ApplicationDbContext db,
@@ -260,13 +282,29 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 ));
             }
 
-            Shared.Data.Models.Assessments.Assessment? assessment = await db.Assessments.FindAsync(id);
+            // Validate CourseModule belongs to course
+            var courseModule = await db.CourseModules
+                .AsNoTracking()
+                .FirstOrDefaultAsync(cm => cm.Id == request.CourseModuleId && cm.CourseId == courseId);
+            if (courseModule == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status400BadRequest,
+                    "Invalid Request",
+                    $"CourseModule with Id {request.CourseModuleId} does not belong to course {courseId}.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            Shared.Data.Models.Assessments.Assessment? assessment = await db.Assessments
+                .FirstOrDefaultAsync(a => a.Id == id && a.CourseModule != null && a.CourseModule.CourseId == courseId);
             if (assessment == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Assessment with Id {id} not found.",
+                    $"Assessment with Id {id} not found in course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
@@ -291,10 +329,11 @@ namespace Academy.Services.Api.Endpoints.Assessments
         }
 
         /// <summary>
-        /// Deletes an assessment by ID.
+        /// Deletes an assessment by ID for a course.
         /// </summary>
         private static async Task<Results<Ok, BadRequest<ErrorResponse>>> DeleteAssessment(
             string tenant,
+            long courseId,
             long id,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor)
@@ -312,13 +351,14 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 ));
             }
 
-            Shared.Data.Models.Assessments.Assessment? assessment = await db.Assessments.FindAsync(id);
+            Shared.Data.Models.Assessments.Assessment? assessment = await db.Assessments
+                .FirstOrDefaultAsync(a => a.Id == id && a.CourseModule != null && a.CourseModule.CourseId == courseId);
             if (assessment == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Assessment with Id {id} not found.",
+                    $"Assessment with Id {id} not found in course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));

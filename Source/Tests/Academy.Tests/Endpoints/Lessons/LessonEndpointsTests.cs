@@ -55,7 +55,7 @@ namespace Academy.Tests.Endpoints.Lessons
             IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(userId: 1, isInstructor: true);
 
             // Act
-            Results<Ok<LessonContracts.ListLessonsResponse>, BadRequest<ErrorResponse>> result = await LessonEndpoints.GetLessons("tenant", 10, db, httpContextAccessor);
+            Results<Ok<LessonContracts.ListLessonsResponse>, BadRequest<ErrorResponse>> result = await LessonEndpoints.GetLessons("tenant", 1, 10, db, httpContextAccessor);
 
             // Assert
             Ok<LessonContracts.ListLessonsResponse>? okResult = result.Result as Ok<LessonContracts.ListLessonsResponse>;
@@ -71,7 +71,7 @@ namespace Academy.Tests.Endpoints.Lessons
             IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(userId: 1, isInstructor: true);
 
             // Act
-            Results<Ok<LessonContracts.LessonResponse>, BadRequest<ErrorResponse>> result = await LessonEndpoints.GetLesson("tenant", 10, 100, db, httpContextAccessor);
+            Results<Ok<LessonContracts.LessonResponse>, BadRequest<ErrorResponse>> result = await LessonEndpoints.GetLesson("tenant", 1, 10, 100, db, httpContextAccessor);
 
             // Assert
             Ok<LessonContracts.LessonResponse>? okResult = result.Result as Ok<LessonContracts.LessonResponse>;
@@ -87,7 +87,7 @@ namespace Academy.Tests.Endpoints.Lessons
             IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(userId: 1, isInstructor: true);
 
             // Act
-            Results<Ok<LessonContracts.LessonResponse>, BadRequest<ErrorResponse>> result = await LessonEndpoints.GetLesson("tenant", 10, 999, db, httpContextAccessor);
+            Results<Ok<LessonContracts.LessonResponse>, BadRequest<ErrorResponse>> result = await LessonEndpoints.GetLesson("tenant", 1, 10, 999, db, httpContextAccessor);
 
             // Assert
             BadRequest<ErrorResponse>? badRequest = result.Result as BadRequest<ErrorResponse>;
@@ -104,7 +104,7 @@ namespace Academy.Tests.Endpoints.Lessons
             IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(userId: 1, isInstructor: true);
 
             // Act
-            Results<Ok<LessonContracts.LessonResponse>, BadRequest<ErrorResponse>> result = await LessonEndpoints.CreateLesson("tenant", 10, request, db, httpContextAccessor);
+            Results<Ok<LessonContracts.LessonResponse>, BadRequest<ErrorResponse>> result = await LessonEndpoints.CreateLesson("tenant", 1, 10, request, db, httpContextAccessor);
 
             // Assert
             Ok<LessonContracts.LessonResponse>? okResult = result.Result as Ok<LessonContracts.LessonResponse>;
@@ -123,7 +123,7 @@ namespace Academy.Tests.Endpoints.Lessons
             IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(userId: 1, isInstructor: true);
 
             // Act
-            Results<Ok<LessonContracts.LessonResponse>, BadRequest<ErrorResponse>> result = await LessonEndpoints.UpdateLesson("tenant", 10, 100, request, db, httpContextAccessor);
+            Results<Ok<LessonContracts.LessonResponse>, BadRequest<ErrorResponse>> result = await LessonEndpoints.UpdateLesson("tenant", 1, 10, 100, request, db, httpContextAccessor);
 
             // Assert
             Ok<LessonContracts.LessonResponse>? okResult = result.Result as Ok<LessonContracts.LessonResponse>;
@@ -140,7 +140,7 @@ namespace Academy.Tests.Endpoints.Lessons
             IHttpContextAccessor httpContextAccessor = HttpContextAccessorExtensions.GetHttpContextAccessor(userId: 1, isInstructor: true);
 
             // Act
-            Results<Ok, BadRequest<ErrorResponse>> result = await LessonEndpoints.DeleteLesson("tenant", 10, 100, db, httpContextAccessor);
+            Results<Ok, BadRequest<ErrorResponse>> result = await LessonEndpoints.DeleteLesson("tenant", 1, 10, 100, db, httpContextAccessor);
 
             // Assert
             Ok? okResult = result.Result as Ok;

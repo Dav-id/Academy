@@ -18,30 +18,30 @@ namespace Academy.Services.Api.Endpoints.Assessments
 
         public static void AddEndpoints(this IEndpointRouteBuilder app)
         {
-            // Updated: SectionId is now part of the route hierarchy
-            app.MapGet("/{tenant}/api/v1/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options", GetOptions)
+            // Updated: courseId is now part of the route hierarchy
+            app.MapGet("/{tenant}/api/v1/courses/{courseId}/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options", GetOptions)
                 .RequireAuthorization();
-            Routes.Add("GET: /{tenant}/api/v1/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options");
+            Routes.Add("GET: /{tenant}/api/v1/courses/{courseId}/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options");
 
-            app.MapGet("/{tenant}/api/v1/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options/{id}", GetOption)
+            app.MapGet("/{tenant}/api/v1/courses/{courseId}/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options/{id}", GetOption)
                 .RequireAuthorization();
-            Routes.Add("GET: /{tenant}/api/v1/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options/{id}");
+            Routes.Add("GET: /{tenant}/api/v1/courses/{courseId}/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options/{id}");
 
-            app.MapPost("/{tenant}/api/v1/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options", CreateOption)
+            app.MapPost("/{tenant}/api/v1/courses/{courseId}/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options", CreateOption)
                 .Validate<RouteHandlerBuilder, CreateAssessmentSectionQuestionOptionRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add("POST: /{tenant}/api/v1/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options");
+            Routes.Add("POST: /{tenant}/api/v1/courses/{courseId}/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options");
 
-            app.MapPost("/{tenant}/api/v1/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options/{id}", UpdateOption)
+            app.MapPost("/{tenant}/api/v1/courses/{courseId}/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options/{id}", UpdateOption)
                 .Validate<RouteHandlerBuilder, UpdateAssessmentSectionQuestionOptionRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add("POST: /{tenant}/api/v1/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options/{id}");
+            Routes.Add("POST: /{tenant}/api/v1/courses/{courseId}/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options/{id}");
 
-            app.MapDelete("/{tenant}/api/v1/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options/{id}", DeleteOption)
+            app.MapDelete("/{tenant}/api/v1/courses/{courseId}/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options/{id}", DeleteOption)
                 .RequireAuthorization();
-            Routes.Add("DELETE: /{tenant}/api/v1/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options/{id}");
+            Routes.Add("DELETE: /{tenant}/api/v1/courses/{courseId}/assessments/{assessmentId}/sections/{sectionId}/questions/{questionId}/options/{id}");
         }
 
         /// <summary>
@@ -49,6 +49,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// </summary>
         private static async Task<Results<Ok<ListAssessmentSectionQuestionOptionsResponse>, BadRequest<ErrorResponse>>> GetOptions(
             string tenant,
+            long courseId,
             long assessmentId,
             long sectionId,
             long questionId,
@@ -70,7 +71,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
             long? userId = user?.GetUserId();
 
-            // Check question belongs to section and assessment
+            // Check question belongs to section, assessment, and course
             var question = await db.AssessmentSectionQuestions
                 .Include(q => q.Section)
                     .ThenInclude(s => s.Assessment)
@@ -80,7 +81,10 @@ namespace Academy.Services.Api.Endpoints.Assessments
                     q.Id == questionId &&
                     q.SectionId == sectionId &&
                     q.Section != null &&
-                    q.Section.AssessmentId == assessmentId
+                    q.Section.AssessmentId == assessmentId &&
+                    q.Section.Assessment != null &&
+                    q.Section.Assessment.CourseModule != null &&
+                    q.Section.Assessment.CourseModule.CourseId == courseId
                 );
 
             if (question == null)
@@ -88,18 +92,18 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Question with Id {questionId} does not belong to section {sectionId} and assessment {assessmentId}.",
+                    $"Question with Id {questionId} does not belong to section {sectionId}, assessment {assessmentId}, and course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
             // Only allow access if instructor or enrolled in the course
-            long? courseId = question.Section?.Assessment?.CourseModule?.CourseId;
+            long? dbCourseId = question.Section?.Assessment?.CourseModule?.CourseId;
             if (!isInstructor)
             {
-                if (!userId.HasValue || !courseId.HasValue ||
-                    !await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value))
+                if (!userId.HasValue || !dbCourseId.HasValue ||
+                    !await db.CourseEnrollments.AnyAsync(e => e.CourseId == dbCourseId && e.UserProfileId == userId.Value))
                 {
                     return TypedResults.BadRequest(new ErrorResponse(
                         StatusCodes.Status403Forbidden,
@@ -133,6 +137,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// </summary>
         private static async Task<Results<Ok<AssessmentSectionQuestionOptionResponse>, BadRequest<ErrorResponse>>> GetOption(
             string tenant,
+            long courseId,
             long assessmentId,
             long sectionId,
             long questionId,
@@ -155,7 +160,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
             bool isInstructor = ((user?.IsInRole($"{tenant}:Instructor") ?? false) || (user?.IsInRole($"{tenant}:Administrator") ?? false) || (user?.IsInRole("Administrator") ?? false));
             long? userId = user?.GetUserId();
 
-            // Check question belongs to section and assessment
+            // Check question belongs to section, assessment, and course
             var question = await db.AssessmentSectionQuestions
                 .Include(q => q.Section)
                     .ThenInclude(s => s.Assessment)
@@ -165,7 +170,10 @@ namespace Academy.Services.Api.Endpoints.Assessments
                     q.Id == questionId &&
                     q.SectionId == sectionId &&
                     q.Section != null &&
-                    q.Section.AssessmentId == assessmentId
+                    q.Section.AssessmentId == assessmentId &&
+                    q.Section.Assessment != null &&
+                    q.Section.Assessment.CourseModule != null &&
+                    q.Section.Assessment.CourseModule.CourseId == courseId
                 );
 
             if (question == null)
@@ -173,18 +181,18 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Question with Id {questionId} does not belong to section {sectionId} and assessment {assessmentId}.",
+                    $"Question with Id {questionId} does not belong to section {sectionId}, assessment {assessmentId}, and course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
             // Only allow access if instructor or enrolled in the course
-            long? courseId = question.Section?.Assessment?.CourseModule?.CourseId;
+            long? dbCourseId = question.Section?.Assessment?.CourseModule?.CourseId;
             if (!isInstructor)
             {
-                if (!userId.HasValue || !courseId.HasValue ||
-                    !await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value))
+                if (!userId.HasValue || !dbCourseId.HasValue ||
+                    !await db.CourseEnrollments.AnyAsync(e => e.CourseId == dbCourseId && e.UserProfileId == userId.Value))
                 {
                     return TypedResults.BadRequest(new ErrorResponse(
                         StatusCodes.Status403Forbidden,
@@ -228,6 +236,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// </summary>
         private static async Task<Results<Ok<AssessmentSectionQuestionOptionResponse>, BadRequest<ErrorResponse>>> CreateOption(
             string tenant,
+            long courseId,
             long assessmentId,
             long sectionId,
             long questionId,
@@ -248,13 +257,19 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 ));
             }
 
-            // Check question belongs to section and assessment
+            // Check question belongs to section, assessment, and course
             bool questionExists = await db.AssessmentSectionQuestions
+                .Include(q => q.Section)
+                    .ThenInclude(s => s.Assessment)
+                        .ThenInclude(a => a.CourseModule)
                 .AnyAsync(q =>
                     q.Id == questionId &&
                     q.SectionId == sectionId &&
                     q.Section != null &&
-                    q.Section.AssessmentId == assessmentId
+                    q.Section.AssessmentId == assessmentId &&
+                    q.Section.Assessment != null &&
+                    q.Section.Assessment.CourseModule != null &&
+                    q.Section.Assessment.CourseModule.CourseId == courseId
                 );
 
             if (!questionExists)
@@ -262,7 +277,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Question with Id {questionId} does not belong to section {sectionId} and assessment {assessmentId}.",
+                    $"Question with Id {questionId} does not belong to section {sectionId}, assessment {assessmentId}, and course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
@@ -298,6 +313,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// </summary>
         private static async Task<Results<Ok<AssessmentSectionQuestionOptionResponse>, BadRequest<ErrorResponse>>> UpdateOption(
             string tenant,
+            long courseId,
             long assessmentId,
             long sectionId,
             long questionId,
@@ -330,13 +346,19 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 ));
             }
 
-            // Check question belongs to section and assessment
+            // Check question belongs to section, assessment, and course
             bool questionExists = await db.AssessmentSectionQuestions
+                .Include(q => q.Section)
+                    .ThenInclude(s => s.Assessment)
+                        .ThenInclude(a => a.CourseModule)
                 .AnyAsync(q =>
                     q.Id == questionId &&
                     q.SectionId == sectionId &&
                     q.Section != null &&
-                    q.Section.AssessmentId == assessmentId
+                    q.Section.AssessmentId == assessmentId &&
+                    q.Section.Assessment != null &&
+                    q.Section.Assessment.CourseModule != null &&
+                    q.Section.Assessment.CourseModule.CourseId == courseId
                 );
 
             if (!questionExists)
@@ -344,7 +366,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Question with Id {questionId} does not belong to section {sectionId} and assessment {assessmentId}.",
+                    $"Question with Id {questionId} does not belong to section {sectionId}, assessment {assessmentId}, and course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
@@ -386,6 +408,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
         /// </summary>
         private static async Task<Results<Ok, BadRequest<ErrorResponse>>> DeleteOption(
             string tenant,
+            long courseId,
             long assessmentId,
             long sectionId,
             long questionId,
@@ -406,13 +429,19 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 ));
             }
 
-            // Check question belongs to section and assessment
+            // Check question belongs to section, assessment, and course
             bool questionExists = await db.AssessmentSectionQuestions
+                .Include(q => q.Section)
+                    .ThenInclude(s => s.Assessment)
+                        .ThenInclude(a => a.CourseModule)
                 .AnyAsync(q =>
                     q.Id == questionId &&
                     q.SectionId == sectionId &&
                     q.Section != null &&
-                    q.Section.AssessmentId == assessmentId
+                    q.Section.AssessmentId == assessmentId &&
+                    q.Section.Assessment != null &&
+                    q.Section.Assessment.CourseModule != null &&
+                    q.Section.Assessment.CourseModule.CourseId == courseId
                 );
 
             if (!questionExists)
@@ -420,7 +449,7 @@ namespace Academy.Services.Api.Endpoints.Assessments
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Question with Id {questionId} does not belong to section {sectionId} and assessment {assessmentId}.",
+                    $"Question with Id {questionId} does not belong to section {sectionId}, assessment {assessmentId}, and course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));

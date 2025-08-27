@@ -7,12 +7,12 @@ namespace Academy.Services.Api.Endpoints.Lessons
     /// <summary>
     /// Contracts for lesson content endpoints.
     /// </summary>
-    public static class LessonContentContracts
+    public static class LessonSectionContentContracts
     {
         /// <summary>
         /// Request to create lesson content.
         /// </summary>
-        public record CreateLessonContentRequest(
+        public record CreateLessonSectionContentRequest(
             long LessonId,
             string ContentType,
             string ContentData
@@ -21,7 +21,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// <summary>
         /// Request to update lesson content.
         /// </summary>
-        public record UpdateLessonContentRequest(
+        public record UpdateLessonSectionContentRequest(
             long Id,
             long LessonId,
             string ContentType,
@@ -31,7 +31,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// <summary>
         /// Response for lesson content.
         /// </summary>
-        public record LessonContentResponse(
+        public record LessonContentSectionResponse(
             long Id,
             long LessonId,
             string ContentType,
@@ -41,13 +41,13 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// <summary>
         /// Response for a list of lesson contents.
         /// </summary>
-        public record ListLessonContentsResponse(IReadOnlyList<LessonContentResponse> Contents, int TotalLessonContentCount);
+        public record ListLessonContentsResponse(IReadOnlyList<LessonContentSectionResponse> Contents, int TotalLessonContentCount);
     }
 
     /// <summary>
-    /// Validator for <see cref="LessonContentContracts.CreateLessonContentRequest"/>.
+    /// Validator for <see cref="LessonSectionContentContracts.CreateLessonSectionContentRequest"/>.
     /// </summary>
-    public sealed class CreateLessonContentValidator : AbstractValidator<LessonContentContracts.CreateLessonContentRequest>
+    public sealed class CreateLessonContentValidator : AbstractValidator<LessonSectionContentContracts.CreateLessonSectionContentRequest>
     {
         public CreateLessonContentValidator()
         {
@@ -58,9 +58,9 @@ namespace Academy.Services.Api.Endpoints.Lessons
     }
 
     /// <summary>
-    /// Validator for <see cref="LessonContentContracts.UpdateLessonContentRequest"/>.
+    /// Validator for <see cref="LessonSectionContentContracts.UpdateLessonSectionContentRequest"/>.
     /// </summary>
-    public sealed class UpdateLessonContentValidator : AbstractValidator<LessonContentContracts.UpdateLessonContentRequest>
+    public sealed class UpdateLessonContentValidator : AbstractValidator<LessonSectionContentContracts.UpdateLessonSectionContentRequest>
     {
         public UpdateLessonContentValidator()
         {

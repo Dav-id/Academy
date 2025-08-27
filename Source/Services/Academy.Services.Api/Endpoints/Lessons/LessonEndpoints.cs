@@ -20,30 +20,30 @@ namespace Academy.Services.Api.Endpoints.Lessons
 
         public static void AddEndpoints(this IEndpointRouteBuilder app)
         {
-            app.MapGet("/{tenant}/api/v1/modules/{moduleId}/lessons", GetLessons)
+            app.MapGet("/{tenant}/api/v1/courses/{courseId}/modules/{moduleId}/lessons", GetLessons)
                 .RequireAuthorization();
-            Routes.Add("GET: /{tenant}/api/v1/modules/{moduleId}/lessons?page={page}&pageSize={pageSize}");
+            Routes.Add("GET: /{tenant}/api/v1/courses/{courseId}/modules/{moduleId}/lessons?page={page}&pageSize={pageSize}");
 
-            app.MapGet("/{tenant}/api/v1/modules/{moduleId}/lessons/{id}", GetLesson)
+            app.MapGet("/{tenant}/api/v1/courses/{courseId}/modules/{moduleId}/lessons/{id}", GetLesson)
                 .RequireAuthorization();
-            Routes.Add("GET: /{tenant}/api/v1/modules/{moduleId}/lessons/{id}");
+            Routes.Add("GET: /{tenant}/api/v1/courses/{courseId}/modules/{moduleId}/lessons/{id}");
 
-            app.MapPost("/{tenant}/api/v1/modules/{moduleId}/lessons", CreateLesson)
+            app.MapPost("/{tenant}/api/v1/courses/{courseId}/modules/{moduleId}/lessons", CreateLesson)
                 .Validate<RouteHandlerBuilder, CreateLessonRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add("POST: /{tenant}/api/v1/modules/{moduleId}/lessons");
+            Routes.Add("POST: /{tenant}/api/v1/courses/{courseId}/modules/{moduleId}/lessons");
 
             // Update uses POST as it expects the full entity in the body, not just the fields to update.
-            app.MapPost("/{tenant}/api/v1/modules/{moduleId}/lessons/{id}", UpdateLesson)
+            app.MapPost("/{tenant}/api/v1/courses/{courseId}/modules/{moduleId}/lessons/{id}", UpdateLesson)
                 .Validate<RouteHandlerBuilder, UpdateLessonRequest>()
                 .ProducesValidationProblem()
                 .RequireAuthorization();
-            Routes.Add("POST: /{tenant}/api/v1/modules/{moduleId}/lessons/{id}");
+            Routes.Add("POST: /{tenant}/api/v1/courses/{courseId}/modules/{moduleId}/lessons/{id}");
 
-            app.MapDelete("/{tenant}/api/v1/modules/{moduleId}/lessons/{id}", DeleteLesson)
+            app.MapDelete("/{tenant}/api/v1/courses/{courseId}/modules/{moduleId}/lessons/{id}", DeleteLesson)
                 .RequireAuthorization();
-            Routes.Add("DELETE: /{tenant}/api/v1/modules/{moduleId}/lessons/{id}");
+            Routes.Add("DELETE: /{tenant}/api/v1/courses/{courseId}/modules/{moduleId}/lessons/{id}");
         }
 
         /// <summary>
@@ -51,6 +51,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// </summary>
         public static async Task<Results<Ok<ListLessonsResponse>, BadRequest<ErrorResponse>>> GetLessons(
             string tenant,
+            long courseId,
             long moduleId,
             ApplicationDbContext db,
             IHttpContextAccessor httpContextAccessor,
@@ -65,20 +66,20 @@ namespace Academy.Services.Api.Endpoints.Lessons
             Shared.Data.Models.Courses.CourseModule? module = await db.CourseModules
                 .Include(m => m.Course)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(m => m.Id == moduleId);
+                .FirstOrDefaultAsync(m => m.Id == moduleId && m.CourseId == courseId);
             if (module == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Module with Id {moduleId} not found.",
+                    $"Module with Id {moduleId} not found in course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
             bool hasAccess = isInstructor ||
-                userId.HasValue && await db.CourseEnrollments.AnyAsync(e => e.CourseId == module.CourseId && e.UserProfileId == userId.Value);
+                userId.HasValue && await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value);
             if (!hasAccess)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
@@ -116,6 +117,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// </summary>
         public static async Task<Results<Ok<LessonResponse>, BadRequest<ErrorResponse>>> GetLesson(
             string tenant,
+            long courseId,
             long moduleId,
             long id,
             ApplicationDbContext db,
@@ -128,20 +130,20 @@ namespace Academy.Services.Api.Endpoints.Lessons
             Shared.Data.Models.Courses.CourseModule? module = await db.CourseModules
                 .Include(m => m.Course)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(m => m.Id == moduleId);
+                .FirstOrDefaultAsync(m => m.Id == moduleId && m.CourseId == courseId);
             if (module == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Module with Id {moduleId} not found.",
+                    $"Module with Id {moduleId} not found in course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
             }
 
             bool hasAccess = isInstructor ||
-                userId.HasValue && await db.CourseEnrollments.AnyAsync(e => e.CourseId == module.CourseId && e.UserProfileId == userId.Value);
+                userId.HasValue && await db.CourseEnrollments.AnyAsync(e => e.CourseId == courseId && e.UserProfileId == userId.Value);
             if (!hasAccess)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
@@ -164,7 +166,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Lesson with Id {id} not found.",
+                    $"Lesson with Id {id} not found in module {moduleId} and course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
@@ -178,6 +180,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// </summary>
         public static async Task<Results<Ok<LessonResponse>, BadRequest<ErrorResponse>>> CreateLesson(
             string tenant,
+            long courseId,
             long moduleId,
             CreateLessonRequest request,
             ApplicationDbContext db,
@@ -191,6 +194,21 @@ namespace Academy.Services.Api.Endpoints.Lessons
                     StatusCodes.Status403Forbidden,
                     "Forbidden",
                     "You are not allowed to create lessons.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
+            // Validate module belongs to course
+            var module = await db.CourseModules
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.Id == moduleId && m.CourseId == courseId);
+            if (module == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status404NotFound,
+                    "Not Found",
+                    $"Module with Id {moduleId} not found in course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
@@ -220,6 +238,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// </summary>
         public static async Task<Results<Ok<LessonResponse>, BadRequest<ErrorResponse>>> UpdateLesson(
             string tenant,
+            long courseId,
             long moduleId,
             long id,
             UpdateLessonRequest request,
@@ -250,13 +269,28 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 ));
             }
 
+            // Validate module belongs to course
+            var module = await db.CourseModules
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.Id == moduleId && m.CourseId == courseId);
+            if (module == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status404NotFound,
+                    "Not Found",
+                    $"Module with Id {moduleId} not found in course {courseId}.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             Shared.Data.Models.Lessons.Lesson? lesson = await db.Lessons.FirstOrDefaultAsync(l => l.Id == id && l.CourseModuleId == moduleId);
             if (lesson == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Lesson with Id {id} not found.",
+                    $"Lesson with Id {id} not found in module {moduleId} and course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
@@ -280,6 +314,7 @@ namespace Academy.Services.Api.Endpoints.Lessons
         /// </summary>
         public static async Task<Results<Ok, BadRequest<ErrorResponse>>> DeleteLesson(
             string tenant,
+            long courseId,
             long moduleId,
             long id,
             ApplicationDbContext db,
@@ -298,13 +333,28 @@ namespace Academy.Services.Api.Endpoints.Lessons
                 ));
             }
 
+            // Validate module belongs to course
+            var module = await db.CourseModules
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.Id == moduleId && m.CourseId == courseId);
+            if (module == null)
+            {
+                return TypedResults.BadRequest(new ErrorResponse(
+                    StatusCodes.Status404NotFound,
+                    "Not Found",
+                    $"Module with Id {moduleId} not found in course {courseId}.",
+                    null,
+                    httpContextAccessor?.HttpContext?.TraceIdentifier
+                ));
+            }
+
             Shared.Data.Models.Lessons.Lesson? lesson = await db.Lessons.FirstOrDefaultAsync(l => l.Id == id && l.CourseModuleId == moduleId);
             if (lesson == null)
             {
                 return TypedResults.BadRequest(new ErrorResponse(
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    $"Lesson with Id {id} not found.",
+                    $"Lesson with Id {id} not found in module {moduleId} and course {courseId}.",
                     null,
                     httpContextAccessor?.HttpContext?.TraceIdentifier
                 ));
